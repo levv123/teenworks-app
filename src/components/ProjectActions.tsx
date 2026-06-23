@@ -110,8 +110,6 @@ function getContextBanner(
     switch (projectStatus) {
       case 'inquiry':
         return { emoji: '💬', title: 'New inquiry', subtitle: 'A client wants to discuss a project with you.', color: Colors.info };
-      case 'inquiry':
-        return { emoji: '💬', title: 'New inquiry', subtitle: 'A client wants to discuss a project with you.', color: Colors.info };
       case 'offer_sent':
         return { emoji: '📋', title: 'Offer received', subtitle: 'Accept the offer to confirm, or ask a question first.', color: Colors.warning };
       case 'accepted':
@@ -348,7 +346,16 @@ export function ProjectActions({
         }
 
         case 'decline_offer': {
-          updated = await updateBookingStatus(booking.id, 'cancelled');
+          await setProjectStatus(booking.id, 'cancelled');
+          await sendSystemMessage(
+            booking.id, userId,
+            isClient
+              ? '❌ Offer declined.'
+              : '❌ Offer declined by worker. You may post the request again to find someone else.',
+            'project_started', '',
+            'close-circle-outline',
+          );
+          updated = { ...booking, project_status: 'cancelled' };
           break;
         }
 
@@ -396,11 +403,23 @@ export function ProjectActions({
 
         case 'accept_offer_provider': {
           updated = await acceptOffer(booking.id);
+          await sendSystemMessage(
+            booking.id, userId,
+            '✅ Offer accepted — project is now confirmed. Work will begin soon.',
+            'offer_accepted', '',
+            'checkmark-circle-outline',
+          );
           break;
         }
 
         case 'start_work': {
           updated = await updateBookingStatus(booking.id, 'in_progress');
+          await sendSystemMessage(
+            booking.id, userId,
+            '🔨 Work has started. You\'ll be notified when it\'s ready for review.',
+            'project_started', '',
+            'construct-outline',
+          );
           break;
         }
 
@@ -416,17 +435,11 @@ export function ProjectActions({
         }
 
         case 'submit_work': {
+          // submitWork() already sets project_status → review_requested
+          // and posts the summary as a regular chat message.
+          // The DB trigger fires automatically and emits a system message.
           const summary = extras?.summary ?? workSummary;
           await submitWork(booking.id, userId, summary.trim());
-          await setProjectStatus(booking.id, 'review_requested');
-          await sendSystemMessage(
-            booking.id, userId,
-            summary.trim()
-              ? `Work submitted: ${summary.trim()}`
-              : 'Work submitted. Awaiting client approval.',
-            'project_started', '',
-            'cloud-upload-outline',
-          );
           break;
         }
 
