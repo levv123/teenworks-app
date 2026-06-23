@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "TeenWorks",
+    "slug": "teenworks-app",
+    "scheme": "teenworks",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6C47FF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.lastminute.app",
+      "associatedDomains": ["applinks:teenworks.app", "applinks:myteenworks.com"],
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "LastMinute needs your location to find nearby service providers.",
+        "NSLocationAlwaysUsageDescription": "LastMinute needs your location to find nearby service providers."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6C47FF"
+      },
+      "package": "com.lastminute.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "teenworks.app",    "pathPrefix": "/" },
+            { "scheme": "https", "host": "myteenworks.com",  "pathPrefix": "/" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#6C47FF"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow LastMinute to use your location."
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "SUPABASE_URL",
+      "supabaseAnonKey": "SUPABASE_ANON_KEY"
+    }
+  }
+}
