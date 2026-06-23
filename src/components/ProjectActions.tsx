@@ -394,12 +394,18 @@ export function ProjectActions({
 
         // ── Provider actions ───────────────────────────────────
 
+        case 'accept_offer_provider': {
+          updated = await acceptOffer(booking.id);
+          break;
+        }
+
         case 'start_work': {
           updated = await updateBookingStatus(booking.id, 'in_progress');
           break;
         }
 
         case 'ready_for_review': {
+          await setProjectStatus(booking.id, 'review_requested');
           await sendSystemMessage(
             booking.id, userId,
             'Work is ready for your review — please check the Deliverables tab.',
@@ -410,9 +416,14 @@ export function ProjectActions({
         }
 
         case 'submit_work': {
+          const summary = extras?.summary ?? workSummary;
+          await submitWork(booking.id, userId, summary.trim());
+          await setProjectStatus(booking.id, 'review_requested');
           await sendSystemMessage(
             booking.id, userId,
-            'Work submitted. Awaiting client approval.',
+            summary.trim()
+              ? `Work submitted: ${summary.trim()}`
+              : 'Work submitted. Awaiting client approval.',
             'project_started', '',
             'cloud-upload-outline',
           );
@@ -601,6 +612,42 @@ export function ProjectActions({
           >
             <Ionicons name="refresh-outline" size={15} color="#fff" />
             <Text style={styles.sheetBtnConfirmText}>Request Revision</Text>
+          </TouchableOpacity>
+        </View>
+      </ActionSheet>
+
+      {/* ── Submit Work sheet ── */}
+      <ActionSheet
+        visible={modal === 'submit_work'}
+        title="Submit Work"
+        desc="Describe what you've completed. The client will be notified for review."
+        onClose={closeModal}
+      >
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Work Summary</Text>
+          <TextInput
+            style={[styles.fieldInput, styles.fieldTextarea]}
+            placeholder="Describe what was completed, any notes for the client…"
+            placeholderTextColor={Colors.muted}
+            value={workSummary}
+            onChangeText={setWorkSummary}
+            multiline
+            autoFocus
+          />
+          <Text style={styles.fieldHint}>
+            You can also attach files in the Deliverables tab before submitting.
+          </Text>
+        </View>
+        <View style={styles.sheetBtns}>
+          <TouchableOpacity style={styles.sheetBtnCancel} onPress={closeModal}>
+            <Text style={styles.sheetBtnCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sheetBtnConfirm, { backgroundColor: Colors.success }]}
+            onPress={() => execute('submit_work', { summary: workSummary })}
+          >
+            <Ionicons name="cloud-upload-outline" size={15} color="#fff" />
+            <Text style={styles.sheetBtnConfirmText}>Submit Work</Text>
           </TouchableOpacity>
         </View>
       </ActionSheet>
