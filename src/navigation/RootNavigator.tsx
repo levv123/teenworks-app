@@ -22,17 +22,22 @@ export function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-      {/* Public — always accessible, no auth required */}
-      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
-      <Stack.Screen name="PortfolioDetail" component={PortfolioDetailScreen} />
-
-      {/* Auth-gated app */}
+    <Stack.Navigator
+      screenOptions={{ headerShown: false, animation: 'fade' }}
+      // Auth or App must be first so '/' renders the correct initial screen.
+      // PublicProfile/PortfolioDetail are registered after so deep-links work,
+      // but they are never the default initial route.
+    >
+      {/* Auth-gated screens — whichever is first becomes the initial route */}
       {isAuthenticated ? (
         <Stack.Screen name="App" component={AppNavigator} />
       ) : (
         <Stack.Screen name="Auth" component={AuthNavigator} />
       )}
+
+      {/* Public deep-link screens — accessible via /u/:username etc. */}
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="PortfolioDetail" component={PortfolioDetailScreen} />
     </Stack.Navigator>
   );
 }
