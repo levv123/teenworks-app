@@ -4,6 +4,7 @@
     "slug": "teenworks-app",
     "scheme": "teenworks",
     "version": "1.0.0",
+    "description": "TeenWorks connects teens with local clients for real paid work — lawn care, tutoring, video editing, and more. Build your reputation, grow your trust score, and get hired.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
