@@ -48,15 +48,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session, loadUser]);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      if (s) {
-        loadUser(s).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    // Get initial session — MUST always call setLoading(false) even on error,
+    // otherwise the app hangs on a blank screen when Supabase is unreachable.
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        setSession(s);
+        if (s) {
+          loadUser(s).finally(() => setLoading(false));
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('[TeenWorks] getSession failed (check Supabase env vars):', err?.message ?? err);
+        setLoading(false); // unblock the UI so the app renders
+      });
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
