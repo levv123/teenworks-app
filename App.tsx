@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,9 +8,6 @@ import * as Linking from 'expo-linking';
 import { AuthProvider } from './src/store/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
-// ── Startup diagnostics (safe to remove once the app renders correctly) ───────
-console.log('[TeenWorks] ✅ App.tsx module evaluated — platform:', Platform.OS);
-console.log('[TeenWorks] SUPABASE_URL configured:', Boolean(process.env.EXPO_PUBLIC_SUPABASE_URL));
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 // Catches any synchronous render-time crash and shows a readable screen
@@ -88,19 +85,24 @@ const linking: LinkingOptions<ReactNavigation.RootParamList> = {
 };
 
 export default function App() {
-  console.log('[TeenWorks] ✅ App component rendering');
   return (
     <ErrorBoundary>
-      {/* ── Debug banner — confirms JS is executing and React is mounting ── */}
-      <View style={debugStyles.banner}>
-        <Text style={debugStyles.bannerText}>⚡ TeenWorks App Loaded</Text>
-      </View>
-
       <SafeAreaProvider>
         <AuthProvider>
           <NavigationContainer
             linking={linking}
             onReady={() => console.log('[TeenWorks] ✅ NavigationContainer ready')}
+            documentTitle={{
+              formatter: (options, route) => {
+                // options?.title is the screen's title option (may be undefined for
+                // wrapper screens like 'Auth' or 'App'). Fall back to 'TeenWorks'.
+                const screenTitle = options?.title;
+                if (!screenTitle || screenTitle === route?.name) {
+                  return 'TeenWorks — Find Local Teen Services';
+                }
+                return `${screenTitle} — TeenWorks`;
+              },
+            }}
           >
             <StatusBar style="auto" />
             <RootNavigator />
@@ -111,22 +113,3 @@ export default function App() {
   );
 }
 
-const debugStyles = StyleSheet.create({
-  banner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 9999,
-    backgroundColor: '#6C47FF',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  bannerText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-});
