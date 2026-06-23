@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export --platform web"
+    "build:web": "expo export --platform web && cp web/favicon.ico web/favicon-32.png web/favicon-192.png web/favicon-512.png web/manifest.json dist/ && node scripts/inject-head.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",
