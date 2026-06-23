@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
-import * as ExpoLocation from 'expo-location';
+import { Platform } from 'react-native';
 import { Location } from '../types';
+
+// expo-location is native-only and stubbed to an empty module on web.
+// Import it lazily so the stub doesn't crash the bundle.
+const ExpoLocation = Platform.OS !== 'web'
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  ? (require('expo-location') as typeof import('expo-location'))
+  : null;
 
 interface UseLocationResult {
   location: Location | null;
@@ -18,11 +25,13 @@ export function useLocation(): UseLocationResult {
   const [error, setError] = useState<string | null>(null);
 
   const requestPermission = async (): Promise<boolean> => {
+    if (!ExpoLocation) return false;
     const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
     return status === 'granted';
   };
 
   const fetchLocation = async () => {
+    if (!ExpoLocation) return; // not supported on web
     setLoading(true);
     setError(null);
     try {

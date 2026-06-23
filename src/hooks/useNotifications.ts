@@ -1,23 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
-import * as ExpoNotifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
-ExpoNotifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// expo-notifications and expo-device are native-only; they are stubbed to
+// empty modules on web by metro.config.js. Import them lazily so the stub
+// doesn't crash the bundle when their exports are accessed at module load.
+const isWeb = Platform.OS === 'web';
+const ExpoNotifications = isWeb
+  ? null
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  : (require('expo-notifications') as typeof import('expo-notifications'));
+const Device = isWeb
+  ? null
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  : (require('expo-device') as typeof import('expo-device'));
+
+if (ExpoNotifications) {
+  ExpoNotifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export function useNotifications() {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<ExpoNotifications.Notification | null>(null);
-  const notificationListener = useRef<ExpoNotifications.Subscription | null>(null);
-  const responseListener = useRef<ExpoNotifications.Subscription | null>(null);
+  const [notification, setNotification] = useState<any>(null);
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
+    if (!ExpoNotifications) return; // no-op on web
+
     registerForPushNotifications().then((token) => {
       if (token) setExpoPushToken(token);
     });
@@ -44,6 +59,8 @@ export function useNotifications() {
 }
 
 async function registerForPushNotifications(): Promise<string | null> {
+  if (!ExpoNotifications || !Device) return null;
+
   if (!Device.isDevice) {
     console.log('Push notifications require a physical device');
     return null;
