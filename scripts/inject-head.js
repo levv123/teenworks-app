@@ -21,6 +21,14 @@ const inject = `
     <link rel="apple-touch-icon"    sizes="192x192"    href="/favicon-192.png" />
     <link rel="manifest" href="/manifest.json" />
 
+    <!-- ── iOS home-screen app ────────────────────────────────────── -->
+    <!-- Added to the Home Screen, iOS launches this full-screen with no Safari
+         chrome and a black status bar, matching the app's background. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TeenWorks" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
     <!-- ── Open Graph ─────────────────────────────────────────────── -->
     <meta property="og:type"        content="website" />
     <meta property="og:title"       content="TeenWorks — Real Work for Real Teens" />
@@ -49,6 +57,13 @@ const inject = `
 html = html.replace(
   '<title>TeenWorks</title>',
   '<title>TeenWorks — Real Work for Real Teens</title>'
+);
+
+// Let the layout reach under the notch and home indicator. The app already pads
+// with safe-area insets, which read as 0 unless the viewport opts into cover.
+html = html.replace(
+  'content="width=device-width, initial-scale=1, shrink-to-fit=no"',
+  'content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"'
 );
 
 // Inject before </head>
