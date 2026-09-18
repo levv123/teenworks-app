@@ -51,7 +51,10 @@ export function BreakdownRow({
 
       <AppText variant="bodyBold">{formatMoney(slice.amount)}</AppText>
 
-      <ProgressBar value={percent / 100} style={[styles.bar, { width: barWidth }]} />
+      <ProgressBar
+        value={percent / 100}
+        style={[styles.bar, { flexBasis: barWidth, maxWidth: barWidth }]}
+      />
 
       <AppText variant="small" color={C.textMuted} style={styles.percent}>
         {`${percent}%`}
@@ -66,13 +69,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   names: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 'auto',
     minWidth: 0,
     marginLeft: S.md,
     marginRight: S.md,
   },
   bar: {
     marginLeft: S.md,
+    // The track gives up width before the category name does, so a narrow
+    // screen shortens the bar instead of ellipsising "Yard Work".
+    flexGrow: 0,
+    flexShrink: 4,
   },
   percent: {
     width: PERCENT_WIDTH,

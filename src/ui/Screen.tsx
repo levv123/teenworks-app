@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { C, GUTTER, S, TAB_BAR_HEIGHT } from '../design/tokens';
+import { C, GUTTER, S } from '../design/tokens';
 
 export interface ScreenProps {
   children?: ReactNode;
@@ -25,8 +25,6 @@ export interface ScreenProps {
   style?: StyleProp<ViewStyle>;
   refreshing?: boolean;
   onRefresh?: () => void;
-  /** Adds the tab-bar height to the bottom content padding on tab screens. */
-  tabBarSpacing?: boolean;
 }
 
 export function Screen({
@@ -39,13 +37,14 @@ export function Screen({
   style,
   refreshing,
   onRefresh,
-  tabBarSpacing = false,
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const gutter = padded ? GUTTER : 0;
   const contentPadding: ViewStyle = {
     paddingHorizontal: gutter,
-    paddingBottom: S.xxl + (tabBarSpacing ? TAB_BAR_HEIGHT : 0),
+    // The tab bar is a sibling below the scene, not an overlay, so the scene
+    // height already excludes it — adding it here would double-count.
+    paddingBottom: S.xxl,
   };
 
   const body = scroll ? (

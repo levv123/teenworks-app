@@ -57,12 +57,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: S.xs,
+    // Four-digit totals plus the delta badge exceed the left column on a 360pt
+    // screen; wrapping the badge beats overlapping the chart.
+    flexWrap: 'wrap',
+    columnGap: S.sm,
+    rowGap: S.xs,
   },
   total: {
     ...TABULAR,
   },
   badge: {
-    marginLeft: S.sm,
+    // Spacing comes from the row's columnGap so a wrapped badge stays aligned.
   },
   delta: {
     marginTop: S.xs + 2,

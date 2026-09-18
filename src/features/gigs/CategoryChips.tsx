@@ -41,6 +41,9 @@ export function CategoryChips({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // Without this the first tap after typing in search is spent dismissing
+      // the keyboard, and the chip never registers.
+      keyboardShouldPersistTaps="handled"
       style={style}
       contentContainerStyle={styles.content}
     >

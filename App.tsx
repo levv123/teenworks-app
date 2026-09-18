@@ -75,6 +75,9 @@ const prefix = Linking.createURL('/');
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [prefix, 'https://teenworks.app', 'https://myteenworks.com', 'teenworks://'],
   config: {
+    // Places the tabs beneath every deep-linked secondary screen, so a shared
+    // link like /gigs/g1 opens with a back path instead of a dead-end stack.
+    initialRouteName: 'Tabs',
     screens: {
       // Registered first so '/' lands on the Home tab, not on a secondary screen.
       Tabs: {

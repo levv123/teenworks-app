@@ -19,7 +19,8 @@ export type RootStackParamList = {
   // Earn side
   Gigs: { category?: CategoryId } | undefined;
   GigDetail: { gigId: string };
-  PostService: undefined;
+  /** With a serviceId the form opens in edit mode on that service. */
+  PostService: { serviceId?: string } | undefined;
   MyServices: undefined;
   PastJobs: undefined;
   Profile: undefined;

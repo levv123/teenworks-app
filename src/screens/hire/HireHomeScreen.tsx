@@ -45,7 +45,10 @@ export function HireHomeScreen() {
   const switchToEarning = useCallback(() => {
     setMode('earn');
     showToast('Switched to earning');
-    nav.goBack();
+    // Reached from Profile there is a stack to pop; reached by deep link to
+    // /hire there is not, and this is the screen's only exit.
+    if (nav.canGoBack()) nav.goBack();
+    else nav.navigate('Tabs', { screen: 'Home' });
   }, [nav, setMode, showToast]);
 
   const postRequest = useCallback(() => nav.navigate('PostRequest'), [nav]);
@@ -79,7 +82,7 @@ export function HireHomeScreen() {
 
         <LocationBar
           place={location.label}
-          distanceMi={location.distanceMi}
+          distanceMi={radiusMi}
           onChange={() => nav.navigate('LocationPicker')}
           style={styles.locationBar}
         />

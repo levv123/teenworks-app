@@ -15,6 +15,9 @@ import { useApp, useIsSaved } from '../../store/AppStore';
 import { GigThumb } from './GigThumb';
 
 /** Photo edge; the meta column is built to land on the same height. */
+/** The row height is tuned for two tags. */
+const MAX_TAGS = 2;
+
 const THUMB = 72;
 
 export interface GigCardProps {
@@ -58,11 +61,13 @@ export function GigCard({ gig, onPress, right, showSaveButton = false }: GigCard
           </View>
 
           <View style={styles.tags}>
-            {gig.tags.map((tag, index) => (
+            {/* The row is sized for two tags (docs/DESIGN.md 3.1); a third would
+                run over the price column, so extra tags are dropped here. */}
+            {gig.tags.slice(0, MAX_TAGS).map((tag, index, shown) => (
               <Pill
                 key={`${tag}-${index}`}
                 label={tag}
-                style={index === gig.tags.length - 1 ? undefined : styles.tag}
+                style={index === shown.length - 1 ? styles.tagLast : styles.tag}
               />
             ))}
           </View>
@@ -130,6 +135,11 @@ const styles = StyleSheet.create({
   },
   tag: {
     marginRight: S.sm - 2,
+    // Backstop for an unusually long tag: shrink rather than push the price out.
+    flexShrink: 1,
+  },
+  tagLast: {
+    flexShrink: 1,
   },
   /** Stretches to the row height so the price tops out level with the title. */
   side: {

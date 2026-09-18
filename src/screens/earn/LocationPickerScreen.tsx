@@ -79,7 +79,6 @@ export function LocationPickerScreen() {
               style={({ pressed }) => [
                 styles.chip,
                 active ? styles.chipActive : styles.chipInactive,
-                index > 0 && styles.chipGap,
                 pressed && styles.pressed,
               ]}
             >
@@ -160,12 +159,17 @@ const styles = StyleSheet.create({
   },
   chips: {
     flexDirection: 'row',
+    // Five chips overrun a 360pt gutter, so the row wraps rather than clipping
+    // the widest radius off the edge of the screen.
+    flexWrap: 'wrap',
     marginTop: S.md,
   },
   chip: {
     paddingVertical: S.sm,
     paddingHorizontal: S.base,
     borderRadius: R.full,
+    marginRight: S.sm,
+    marginBottom: S.sm,
   },
   chipInactive: {
     backgroundColor: C.surfaceAlt,
@@ -174,9 +178,6 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     backgroundColor: C.text,
-  },
-  chipGap: {
-    marginLeft: S.sm,
   },
   row: {
     flexDirection: 'row',

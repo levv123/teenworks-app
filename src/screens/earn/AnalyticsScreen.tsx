@@ -68,7 +68,7 @@ export function AnalyticsScreen() {
   );
 
   return (
-    <Screen tabBarSpacing>
+    <Screen>
       <View style={styles.topRow}>
         <SecondaryButton
           label={range.label}

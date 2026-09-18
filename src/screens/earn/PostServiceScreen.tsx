@@ -8,11 +8,11 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { C, R, S } from '../../design/tokens';
 import { CATEGORIES } from '../../data/mock';
 import type { Category, CategoryId, ServiceDraft } from '../../data/types';
-import type { Nav } from '../../navigation/routes';
+import type { Nav, Route } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
 import { formatMoney } from '../../utils/format';
 import { AppText, PrimaryButton, Screen, ScreenHeader, TextField } from '../../ui';
@@ -83,17 +83,35 @@ function validate(form: FormState): Errors {
 
 export function PostServiceScreen() {
   const nav = useNavigation<Nav>();
-  const { location, postService } = useApp();
+  const { params } = useRoute<Route<'PostService'>>();
+  const { location, postService, services, showToast, updateService } = useApp();
 
-  const [form, setForm] = useState<FormState>({
-    title: '',
-    category: null,
-    rate: '',
-    rateType: 'hourly',
-    description: '',
-    availability: [],
-    place: location.label,
-  });
+  // Opened from My Services with an id, the same form edits that service. An id
+  // that no longer resolves falls through to a blank Post form rather than
+  // stranding the user on an empty screen.
+  const editing = services.find((service) => service.id === params?.serviceId) ?? null;
+
+  const [form, setForm] = useState<FormState>(() =>
+    editing
+      ? {
+          title: editing.title,
+          category: editing.category,
+          rate: String(editing.rate),
+          rateType: editing.rateType,
+          description: editing.description,
+          availability: [...editing.availability],
+          place: editing.place,
+        }
+      : {
+          title: '',
+          category: null,
+          rate: '',
+          rateType: 'hourly',
+          description: '',
+          availability: [],
+          place: location.label,
+        },
+  );
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -142,7 +160,13 @@ export function PostServiceScreen() {
       place: form.place.trim().length > 0 ? form.place.trim() : location.label,
     };
 
-    postService(draft);
+    if (editing) {
+      updateService(editing.id, draft);
+      showToast('Service updated');
+    } else {
+      // postService raises its own toast.
+      postService(draft);
+    }
     nav.goBack();
   };
 
@@ -151,10 +175,15 @@ export function PostServiceScreen() {
 
   return (
     <Screen
-      header={<ScreenHeader title="Post a Service" onBack={() => nav.goBack()} />}
+      header={
+        <ScreenHeader
+          title={editing ? 'Edit Service' : 'Post a Service'}
+          onBack={() => nav.goBack()}
+        />
+      }
       footer={
         <PrimaryButton
-          label="Post Service"
+          label={editing ? 'Save Changes' : 'Post Service'}
           onPress={submit}
           disabled={!valid}
         />

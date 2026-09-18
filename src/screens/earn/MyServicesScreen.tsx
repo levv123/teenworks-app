@@ -105,12 +105,21 @@ export function MyServicesScreen() {
             <Divider style={styles.divider} />
 
             <View style={styles.footer}>
-              <SecondaryButton
-                label={service.active ? 'Pause' : 'Activate'}
-                icon={service.active ? 'pause' : 'play'}
-                size="sm"
-                onPress={() => toggle(service)}
-              />
+              <View style={styles.actions}>
+                <SecondaryButton
+                  label="Edit"
+                  icon="create-outline"
+                  size="sm"
+                  onPress={() => nav.navigate('PostService', { serviceId: service.id })}
+                  style={styles.action}
+                />
+                <SecondaryButton
+                  label={service.active ? 'Pause' : 'Activate'}
+                  icon={service.active ? 'pause' : 'play'}
+                  size="sm"
+                  onPress={() => toggle(service)}
+                />
+              </View>
               <Pill
                 label={service.active ? 'Active' : 'Paused'}
                 tone={service.active ? 'success' : 'neutral'}
@@ -164,5 +173,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  action: {
+    marginRight: S.sm,
   },
 });

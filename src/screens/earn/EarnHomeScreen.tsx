@@ -21,7 +21,7 @@ const FEED_LIMIT = 4;
 
 export function EarnHomeScreen() {
   const nav = useNavigation<Nav>();
-  const { category, location, setCategory } = useApp();
+  const { category, location, radiusMi, setCategory } = useApp();
   const visible = useVisibleGigs();
   const feed = visible.slice(0, FEED_LIMIT);
 
@@ -38,7 +38,7 @@ export function EarnHomeScreen() {
   const clearCategory = useCallback(() => setCategory('all'), [setCategory]);
 
   return (
-    <Screen padded={false} tabBarSpacing>
+    <Screen padded={false}>
       <View style={styles.gutter}>
         <View style={styles.headerRow}>
           <AppText variant="display" numberOfLines={1} style={styles.brand}>
@@ -66,7 +66,9 @@ export function EarnHomeScreen() {
 
         <LocationBar
           place={location.label}
-          distanceMi={location.distanceMi}
+          // The bar reports the search radius, which is what the feed is
+          // filtered by — not how far away the selected place happens to be.
+          distanceMi={radiusMi}
           onChange={() => nav.navigate('LocationPicker')}
           style={styles.locationBar}
         />

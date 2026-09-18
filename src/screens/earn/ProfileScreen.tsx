@@ -103,6 +103,11 @@ export function ProfileScreen() {
       onPress: switchToHiring,
       dividerBefore: true,
     },
+    {
+      label: 'Settings',
+      icon: 'settings-outline',
+      onPress: () => showToast('Settings coming soon'),
+    },
   ];
 
   return (
