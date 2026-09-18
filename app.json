@@ -4,29 +4,34 @@
     "slug": "teenworks-app",
     "scheme": "teenworks",
     "version": "1.0.0",
-    "description": "TeenWorks connects teens with local clients for real paid work — lawn care, tutoring, video editing, and more. Build your reputation, grow your trust score, and get hired.",
+    "description": "TeenWorks is a local marketplace where teens find nearby paid gigs, set their own prices, build a trust score, and track what they earn.",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6C47FF"
+      "backgroundColor": "#000000"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.lastminute.app",
-      "associatedDomains": ["applinks:teenworks.app", "applinks:myteenworks.com"],
+      "associatedDomains": [
+        "applinks:teenworks.app",
+        "applinks:myteenworks.com"
+      ],
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "LastMinute needs your location to find nearby service providers.",
-        "NSLocationAlwaysUsageDescription": "LastMinute needs your location to find nearby service providers."
+        "NSLocationWhenInUseUsageDescription": "TeenWorks uses your location to show gigs near you.",
+        "NSLocationAlwaysUsageDescription": "TeenWorks uses your location to show gigs near you."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#6C47FF"
+        "backgroundColor": "#000000"
       },
       "package": "com.lastminute.app",
       "intentFilters": [
@@ -34,10 +39,21 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "teenworks.app",    "pathPrefix": "/" },
-            { "scheme": "https", "host": "myteenworks.com",  "pathPrefix": "/" }
+            {
+              "scheme": "https",
+              "host": "teenworks.app",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "myteenworks.com",
+              "pathPrefix": "/"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
@@ -55,13 +71,13 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#6C47FF"
+          "color": "#000000"
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow LastMinute to use your location."
+          "locationAlwaysAndWhenInUsePermission": "Allow TeenWorks to use your location to find gigs nearby."
         }
       ]
     ],

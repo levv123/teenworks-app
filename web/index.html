@@ -8,7 +8,7 @@
     <!-- ── Primary metadata ───────────────────────────────────────── -->
     <title>TeenWorks — Real Work for Real Teens</title>
     <meta name="description" content="TeenWorks connects teens with local clients for real paid work — lawn care, tutoring, video editing, and more. Build your reputation, grow your trust score, and get hired." />
-    <meta name="theme-color" content="#6C47FF" />
+    <meta name="theme-color" content="#000000" />
     <meta name="application-name" content="TeenWorks" />
 
     <!-- ── Favicons ───────────────────────────────────────────────── -->
@@ -34,7 +34,10 @@
     <!-- ── React Native Web style reset ──────────────────────────── -->
     <style id="expo-reset">
       html, body { height: 100%; }
-      body { overflow: hidden; }
+      /* The app is pure black end to end. Painting the page black too stops a
+         white flash between first paint and the RN-web tree mounting. */
+      html, body, #root { background-color: #000000; }
+      body { overflow: hidden; color-scheme: dark; }
       #root { display: flex; height: 100%; flex: 1; }
     </style>
   </head>

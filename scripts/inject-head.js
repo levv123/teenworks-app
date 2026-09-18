@@ -12,7 +12,7 @@ let html = fs.readFileSync(htmlPath, 'utf8');
 const inject = `
     <!-- ── Primary metadata ───────────────────────────────────────── -->
     <meta name="description" content="TeenWorks connects teens with local clients for real paid work — lawn care, tutoring, video editing, and more. Build your reputation, grow your trust score, and get hired." />
-    <meta name="theme-color" content="#6C47FF" />
+    <meta name="theme-color" content="#000000" />
     <meta name="application-name" content="TeenWorks" />
 
     <!-- ── Favicons ───────────────────────────────────────────────── -->
@@ -34,6 +34,15 @@ const inject = `
     <meta name="twitter:title"       content="TeenWorks — Real Work for Real Teens" />
     <meta name="twitter:description" content="Teens earn real money doing real work. Clients find trusted local help fast." />
     <meta name="twitter:image"       content="https://myteenworks.com/favicon-512.png" />
+
+    <!-- ── Black page background ──────────────────────────────────── -->
+    <!-- Expo generates dist/index.html itself, so the reset in web/index.html
+         never reaches the build. Without this the page flashes white before
+         the RN-web tree mounts. -->
+    <style>
+      html, body, #root { background-color: #000000; }
+      body { color-scheme: dark; }
+    </style>
 `;
 
 // Patch title while we're here
