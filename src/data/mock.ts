@@ -20,6 +20,7 @@ import type {
   User,
   Worker,
 } from './types';
+import { C } from '../design/tokens';
 
 /** Keeps every seeded photo on one stable, already-sized Unsplash URL shape. */
 const photo = (id: string): string =>
@@ -27,10 +28,15 @@ const photo = (id: string): string =>
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
-/** Spec 2.2 order. The first five are the ones the Home chip row shows. */
+/**
+ * Spec 2.2 order. The first five are the ones the Home chip row shows.
+ *
+ * Six of the eight hues exist only as category identity, so they live here;
+ * the two that are also design tokens come from the token module.
+ */
 export const CATEGORIES: Category[] = [
-  { id: 'all', label: 'All', icon: 'grid-outline', color: '#FFFFFF' },
-  { id: 'yard', label: 'Yard Work', icon: 'leaf-outline', color: '#32D74B' },
+  { id: 'all', label: 'All', icon: 'grid-outline', color: C.text },
+  { id: 'yard', label: 'Yard Work', icon: 'leaf-outline', color: C.success },
   { id: 'tutoring', label: 'Tutoring', icon: 'book-outline', color: '#4EA3FF' },
   { id: 'moving', label: 'Moving', icon: 'cube-outline', color: '#FF9F45' },
   { id: 'pets', label: 'Pets', icon: 'paw-outline', color: '#FF7A8A' },
@@ -783,6 +789,25 @@ export const REVIEWS: Review[] = [
     jobTitle: 'Teach Grandma Video Calls',
   },
 ];
+
+// ── Lifetime review totals ────────────────────────────────────────────────────
+//
+// REVIEWS above holds the twelve most recent bodies — what a real client would
+// page through. These are the totals across the whole history, which is what the
+// analytics card and the Reviews header report.
+
+export const REVIEW_COUNT: number = 42;
+
+/** Star buckets across all REVIEW_COUNT reviews. Weighted average: 4.9. */
+export const RATING_BUCKETS: Record<1 | 2 | 3 | 4 | 5, number> = {
+  5: 39,
+  4: 3,
+  3: 0,
+  2: 0,
+  1: 0,
+};
+
+export const LIFETIME_RATING: number = 4.9;
 
 // ── Earnings ──────────────────────────────────────────────────────────────────
 //
