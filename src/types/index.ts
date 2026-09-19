@@ -159,6 +159,8 @@ export interface ServicePackage {
   features: string[];
 }
 
+export type ServiceRateType = 'hourly' | 'fixed';
+
 export interface ProviderService {
   id: string;
   provider_id: string;
@@ -176,6 +178,16 @@ export interface ProviderService {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  // Post-a-Service flow fields (migration 017). Optional so listings created
+  // before the migration — or while it is unapplied — still type-check.
+  /** How starting_price reads: 'hourly' → $X/hr, 'fixed' → flat price. */
+  rate_type?: ServiceRateType | null;
+  /** Typical job length in hours. Distinct from delivery_days (turnaround). */
+  duration_hours?: number | null;
+  /** Display-only service area, e.g. "Surfside, FL". */
+  location_text?: string | null;
+  /** Per-listing weekday availability, e.g. ['Mon','Sat']. */
+  availability_days?: string[] | null;
   // Joined
   category?: Category;
   /** Joined from provider_profiles via fk_ps_provider_profile */

@@ -206,6 +206,30 @@ function OffersStackNav() {
   );
 }
 
+/**
+ * Hoisted out of ProviderTab.Screen's `component` prop. Declaring it inline as
+ * an arrow function made it a brand-new component type on every render of
+ * ProviderTabNavigator, so React unmounted and remounted this whole stack —
+ * discarding the state of every screen inside it, including the multi-step
+ * Post a Service flow. Mirrors ServicesStackNav above; same screens, same order.
+ */
+function ProviderServicesStackNav() {
+  return (
+    <ProviderServicesStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProviderServicesStack.Screen name="MyServices" component={MyServicesScreen} />
+      <ProviderServicesStack.Screen name="CreateEditService" component={CreateEditServiceScreen} />
+      <ProviderServicesStack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
+      <ProviderServicesStack.Screen name="ServicesBrowse" component={ServicesBrowseScreen} />
+      <ProviderServicesStack.Screen name="SavedServices" component={SavedServicesScreen} />
+      <ProviderServicesStack.Screen name="ServiceAnalysis" component={ServiceAnalysisScreen} />
+      <ProviderServicesStack.Screen name="RequestService" component={RequestServiceScreen} />
+      <ProviderServicesStack.Screen name="ServiceRequests" component={ServiceRequestsScreen} />
+      <ProviderServicesStack.Screen name="Booking" component={BookingScreen} />
+      <ProviderServicesStack.Screen name="ProviderProfile" component={ProviderProfileScreen} />
+    </ProviderServicesStack.Navigator>
+  );
+}
+
 function ProviderTabNavigator() {
   return (
     <ProviderTab.Navigator
@@ -234,20 +258,7 @@ function ProviderTabNavigator() {
       <ProviderTab.Screen name="MyOffersTab" component={OffersStackNav} options={{ title: 'My Offers' }} />
       <ProviderTab.Screen
         name="ProviderServicesTab"
-        component={() => (
-          <ProviderServicesStack.Navigator screenOptions={{ headerShown: false }}>
-            <ProviderServicesStack.Screen name="MyServices" component={MyServicesScreen} />
-            <ProviderServicesStack.Screen name="CreateEditService" component={CreateEditServiceScreen} />
-            <ProviderServicesStack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
-            <ProviderServicesStack.Screen name="ServicesBrowse" component={ServicesBrowseScreen} />
-            <ProviderServicesStack.Screen name="SavedServices" component={SavedServicesScreen} />
-            <ProviderServicesStack.Screen name="ServiceAnalysis" component={ServiceAnalysisScreen} />
-            <ProviderServicesStack.Screen name="RequestService" component={RequestServiceScreen} />
-            <ProviderServicesStack.Screen name="ServiceRequests" component={ServiceRequestsScreen} />
-            <ProviderServicesStack.Screen name="Booking" component={BookingScreen} />
-            <ProviderServicesStack.Screen name="ProviderProfile" component={ProviderProfileScreen} />
-          </ProviderServicesStack.Navigator>
-        )}
+        component={ProviderServicesStackNav}
         options={{ title: 'Services' }}
       />
       <ProviderTab.Screen
