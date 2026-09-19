@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "App.tsx",
+    "src/design/**/*",
+    "src/data/**/*",
+    "src/ui/**/*",
+    "src/features/**/*",
+    "src/screens/earn/**/*",
+    "src/screens/hire/**/*",
+    "src/navigation/routes.ts",
+    "src/navigation/MainNavigator.tsx",
+    "src/store/AppStore.tsx",
+    "src/utils/format.ts"
+  ]
+}

@@ -1,0 +1,1085 @@
+/**
+ * Seed data for the TeenWorks frontend.
+ *
+ * Every figure here is the one docs/DESIGN.md specifies: the four feed rows, the
+ * $842 month and its breakdown. Screens read this module today and a real API
+ * later, so nothing outside it should hard-code domain data.
+ */
+import type {
+  Category,
+  CategoryId,
+  EarningsSummary,
+  Gig,
+  HireRequest,
+  PastJob,
+  Place,
+  Review,
+  Service,
+  TimeRange,
+  TimeRangeOption,
+  User,
+  Worker,
+} from './types';
+import { C } from '../design/tokens';
+
+/** Keeps every seeded photo on one stable, already-sized Unsplash URL shape. */
+const photo = (id: string): string =>
+  `https://images.unsplash.com/photo-${id}?w=400&q=70`;
+
+// ── Categories ────────────────────────────────────────────────────────────────
+
+/**
+ * Spec 2.2 order. The first five are the ones the Home chip row shows.
+ *
+ * Six of the eight hues exist only as category identity, so they live here;
+ * the two that are also design tokens come from the token module.
+ */
+export const CATEGORIES: Category[] = [
+  { id: 'all', label: 'All', icon: 'grid-outline', color: C.text },
+  { id: 'yard', label: 'Yard Work', icon: 'leaf-outline', color: C.success },
+  { id: 'tutoring', label: 'Tutoring', icon: 'book-outline', color: '#4EA3FF' },
+  { id: 'moving', label: 'Moving', icon: 'cube-outline', color: '#FF9F45' },
+  { id: 'pets', label: 'Pets', icon: 'paw-outline', color: '#FF7A8A' },
+  { id: 'cleaning', label: 'Cleaning', icon: 'sparkles-outline', color: '#5AC8FA' },
+  { id: 'tech', label: 'Tech Help', icon: 'laptop-outline', color: '#BF7BFF' },
+  { id: 'errands', label: 'Errands', icon: 'bicycle-outline', color: '#FFD60A' },
+];
+
+export const CATEGORY_BY_ID: Record<CategoryId, Category> = CATEGORIES.reduce(
+  (acc, category) => {
+    acc[category.id] = category;
+    return acc;
+  },
+  {} as Record<CategoryId, Category>,
+);
+
+// ── User ──────────────────────────────────────────────────────────────────────
+
+export const USER: User = {
+  id: 'u_lev',
+  name: 'Lev Shifman',
+  handle: 'levshifman',
+  avatarUrl: null,
+  place: 'Surfside, FL',
+  trustScore: 86,
+  trustLevel: 'Trusted',
+  memberSince: '2025-06-02',
+  responseMins: 38,
+  verifications: [
+    { label: 'Email', icon: 'mail-outline', done: true },
+    { label: 'Phone', icon: 'call-outline', done: true },
+    { label: 'ID', icon: 'card-outline', done: true },
+    { label: 'Parent approval', icon: 'shield-checkmark-outline', done: false },
+  ],
+};
+
+// ── Gigs ──────────────────────────────────────────────────────────────────────
+//
+// The first four rows are the mock feed from spec 3.1, in that exact order.
+// Nothing inside the default 3 mi radius is newer than 2h, so the default
+// "newest" sort keeps those four at the top of the Home feed.
+
+export const GIGS: Gig[] = [
+  {
+    id: 'g1',
+    title: 'Lawn Mowing',
+    price: 40,
+    rateType: 'fixed',
+    category: 'yard',
+    place: 'Surfside, FL',
+    distanceMi: 0.4,
+    tags: ['Outdoor', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 120,
+    imageUrl: photo('1589923188900-85dae523342b'),
+    description:
+      'Front and back lawn on a corner lot, a bit under a quarter acre in total. The mower and the trimmer live in the garage and the gas can is already full. Most people finish in about ninety minutes.',
+    duties: [
+      'Mow the front and back lawn',
+      'Edge along the driveway and the front walk',
+      'Bag the clippings and roll the bin to the curb',
+    ],
+    poster: {
+      name: 'Maria Delgado',
+      avatarUrl: photo('1494790108377-be9c29b29330'),
+      rating: 4.9,
+      jobsPosted: 14,
+    },
+  },
+  {
+    id: 'g2',
+    title: 'Dog Walking',
+    price: 25,
+    rateType: 'fixed',
+    category: 'pets',
+    place: 'Bal Harbour',
+    distanceMi: 0.8,
+    tags: ['Pets', 'Recurring'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 240,
+    imageUrl: photo('1552053831-71594a27632d'),
+    description:
+      'Cooper is a five-year-old golden retriever who needs a thirty minute walk every weekday afternoon. He is leash trained and easy with other dogs. The building has keypad entry and you get the code once you are booked.',
+    duties: [
+      'Walk Cooper for thirty minutes on the beach path',
+      'Refill his water bowl when you get back',
+      'Send a photo update after each walk',
+    ],
+    poster: {
+      name: 'Daniel Roth',
+      avatarUrl: photo('1507003211169-0a1dd7228f2d'),
+      rating: 4.8,
+      jobsPosted: 23,
+    },
+  },
+  {
+    id: 'g3',
+    title: 'Help Moving Boxes',
+    price: 60,
+    rateType: 'fixed',
+    category: 'moving',
+    place: 'Miami Beach',
+    distanceMi: 1.1,
+    tags: ['Moving', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 300,
+    imageUrl: photo('1600518464441-9154a4dea21b'),
+    description:
+      'Moving out of a second floor apartment into a house six blocks away. Everything is boxed and labelled already and there is no furniture to take apart. Two of us will be working alongside you the whole time.',
+    duties: [
+      'Carry boxes down to the truck',
+      'Load and stack the truck evenly',
+      'Unload into the labelled rooms at the new house',
+      'Flatten the empty boxes at the end',
+    ],
+    poster: {
+      name: 'Priya Raman',
+      avatarUrl: photo('1438761681033-6461ffad8d80'),
+      rating: 5,
+      jobsPosted: 7,
+    },
+  },
+  {
+    id: 'g4',
+    title: 'Math Tutoring (HS)',
+    price: 35,
+    rateType: 'fixed',
+    category: 'tutoring',
+    place: 'Surfside, FL',
+    distanceMi: 1.3,
+    tags: ['Tutoring', 'Recurring'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 360,
+    imageUrl: photo('1434030216411-0b793f4b4173'),
+    description:
+      'My daughter is a sophomore in Algebra II and needs a steady weekly session to stay ahead of her quizzes. The textbook and the graded worksheets are already out on the table. Sessions run twice a week after four, at our kitchen table.',
+    duties: [
+      'Go over the week\'s homework and flag the gaps',
+      'Work practice problems together out loud',
+      'Leave a note on what to drill before the next session',
+    ],
+    poster: {
+      name: 'Ana Costa',
+      avatarUrl: photo('1544005313-94ddf0286df2'),
+      rating: 4.7,
+      jobsPosted: 11,
+    },
+  },
+  {
+    id: 'g5',
+    title: 'After-School Homework Help',
+    price: 28,
+    rateType: 'hourly',
+    category: 'tutoring',
+    place: 'Aventura, FL',
+    distanceMi: 4.9,
+    tags: ['Tutoring', 'Recurring', 'After school'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 45,
+    imageUrl: photo('1497633762265-9d179a990aa6'),
+    description:
+      'Two brothers in fifth and seventh grade need someone at the table with them from four to six on weekdays. It is mostly reading logs, spelling lists and fractions. A calm, patient presence matters more here than advanced math.',
+    duties: [
+      'Keep both boys moving through their homework',
+      'Check the finished work before it goes in the folder',
+      'Text me a two line recap at the end',
+    ],
+    poster: {
+      name: 'Jonah Feld',
+      avatarUrl: photo('1472099645785-5658abf4ff4e'),
+      rating: 4.6,
+      jobsPosted: 5,
+    },
+  },
+  {
+    id: 'g6',
+    title: 'Weekly Apartment Cleaning',
+    price: 75,
+    rateType: 'fixed',
+    category: 'cleaning',
+    place: 'Miami Beach',
+    distanceMi: 2.2,
+    tags: ['Cleaning', 'Recurring'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 900,
+    imageUrl: photo('1581578731548-c64695cc6952'),
+    description:
+      'A one bedroom condo that needs a full reset every Saturday morning. All of the supplies are under the kitchen sink and the vacuum is in the hall closet. It takes about two hours once you know the place.',
+    duties: [
+      'Counters, sink and stovetop in the kitchen',
+      'Bathroom top to bottom',
+      'Vacuum and mop every floor',
+      'Trash and recycling down to the chute',
+    ],
+    poster: {
+      name: 'Lena Whitfield',
+      avatarUrl: photo('1534528741775-53994a69daeb'),
+      rating: 4.9,
+      jobsPosted: 31,
+    },
+  },
+  {
+    id: 'g7',
+    title: 'Set Up New Laptop & Printer',
+    price: 55,
+    rateType: 'fixed',
+    category: 'tech',
+    place: 'Sunny Isles Beach, FL',
+    distanceMi: 3.1,
+    tags: ['Tech Help', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 10,
+    imageUrl: photo('1517336714731-489689fd1ca8'),
+    description:
+      'I bought a new laptop and a wireless printer and neither one will talk to my wifi. Everything from the old machine needs to come across, and the printer has to work from both devices. Patience with a lot of questions is appreciated.',
+    duties: [
+      'Move the files and photos off the old laptop',
+      'Get the printer onto the wifi network',
+      'Set up email and a password manager',
+      'Write the logins down on paper for me',
+    ],
+    poster: {
+      name: 'Harold Stein',
+      avatarUrl: null,
+      rating: 4.5,
+      jobsPosted: 3,
+    },
+  },
+  {
+    id: 'g8',
+    title: 'Grocery Run & Pharmacy Pickup',
+    price: 22,
+    rateType: 'fixed',
+    category: 'errands',
+    place: 'Surfside, FL',
+    distanceMi: 0.3,
+    tags: ['Errands', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 420,
+    // No photo on this one on purpose: it exercises the GigCard icon fallback.
+    imageUrl: null,
+    description:
+      'A short list from the Publix on Harding plus a prescription from the pharmacy two doors down. The list runs to about fifteen items and I will send it over with the store card. You get paid back the minute the receipt lands.',
+    duties: [
+      'Shop the list at the Publix on Harding',
+      'Pick up the prescription next door',
+      'Leave everything with the front desk',
+    ],
+    poster: {
+      name: 'Ruth Kaminsky',
+      avatarUrl: photo('1517841905240-472988babdf9'),
+      rating: 4.8,
+      jobsPosted: 9,
+    },
+  },
+  {
+    id: 'g9',
+    title: 'Cat Sitting (Long Weekend)',
+    price: 90,
+    rateType: 'fixed',
+    category: 'pets',
+    place: 'Aventura, FL',
+    distanceMi: 5.1,
+    tags: ['Pets', 'One-time', 'Weekend'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 1500,
+    imageUrl: photo('1514888286974-6c03e2ca1dba'),
+    description:
+      'Two indoor cats need feeding and a litter change twice a day from Friday through Monday. They hide for the first visit and then they will not leave you alone. The building has guest parking by the side entrance.',
+    duties: [
+      'Feed both cats morning and evening',
+      'Scoop and refresh the litter boxes',
+      'Refill the water fountain',
+      'Send a daily photo so I know they are fine',
+    ],
+    poster: {
+      name: 'Camille Ortiz',
+      avatarUrl: photo('1524504388940-b1c1722653e1'),
+      rating: 4.9,
+      jobsPosted: 16,
+    },
+  },
+  {
+    id: 'g10',
+    title: 'Garage Clean-Out & Haul-Away',
+    price: 140,
+    rateType: 'fixed',
+    category: 'moving',
+    place: 'North Miami Beach, FL',
+    distanceMi: 5.8,
+    tags: ['Moving', 'Heavy lifting', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 2600,
+    imageUrl: photo('1530124566582-a618bc2615dc'),
+    description:
+      'A two car garage that nobody has touched in years needs sorting into keep, donate and trash. There is a fair amount of lifting but nothing over fifty pounds. I will be out there the whole time making the calls.',
+    duties: [
+      'Pull everything out and sort it into three piles',
+      'Load the donation pile into my SUV',
+      'Sweep the floor once the garage is empty',
+    ],
+    poster: {
+      name: 'Victor Nunes',
+      avatarUrl: photo('1500648767791-00dcc994a43e'),
+      rating: 4.4,
+      jobsPosted: 6,
+    },
+  },
+  {
+    id: 'g11',
+    title: 'Hedge Trimming & Yard Cleanup',
+    price: 85,
+    rateType: 'fixed',
+    category: 'yard',
+    place: 'North Bay Village, FL',
+    distanceMi: 3.6,
+    tags: ['Outdoor', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 180,
+    imageUrl: photo('1466692476868-aef1dfb1e735'),
+    description:
+      'Ten feet of hibiscus hedge along the side fence has gotten well out of hand, and the yard is covered in dropped palm fronds. The trimmer, the gloves and a stack of yard bags are all in the shed. Best done in the morning before the heat sets in.',
+    duties: [
+      'Trim the hedge back down to fence height',
+      'Rake and bag the fronds and the clippings',
+      'Stack the bags at the curb for pickup',
+    ],
+    poster: {
+      name: 'Greg Lindqvist',
+      avatarUrl: photo('1502823403499-6ccfcf4fb453'),
+      rating: 4.7,
+      jobsPosted: 12,
+    },
+  },
+  {
+    id: 'g12',
+    title: 'Deep Clean Before Move-Out',
+    price: 160,
+    rateType: 'fixed',
+    category: 'cleaning',
+    place: 'Miami Beach',
+    distanceMi: 2.6,
+    tags: ['Cleaning', 'One-time', 'Deep clean'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 4000,
+    imageUrl: photo('1556911220-bff31c812dba'),
+    description:
+      'Move-out clean on an empty two bedroom so I can get the deposit back. The baseboards, the inside of the oven, the inside of the fridge and the balcony door track all need real attention. Plan on four to five hours.',
+    duties: [
+      'Scrub the kitchen including the oven and fridge',
+      'Deep clean both bathrooms',
+      'Wipe baseboards, doors and window tracks',
+      'Mop every floor last on the way out',
+    ],
+    poster: {
+      name: 'Tomas Brenner',
+      avatarUrl: photo('1506794778202-cad84cf45f1d'),
+      rating: 4.6,
+      jobsPosted: 4,
+    },
+  },
+  {
+    id: 'g13',
+    title: 'Teach Grandma Video Calls',
+    price: 30,
+    rateType: 'hourly',
+    category: 'tech',
+    place: 'Bal Harbour',
+    distanceMi: 0.9,
+    tags: ['Tech Help', 'Recurring', 'Patient'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 620,
+    // Second gig with no photo, so the fallback tile shows up inside the
+    // default radius as well as outside it.
+    imageUrl: null,
+    description:
+      'My grandmother wants to video call her sister in Buenos Aires without needing help every single time. She needs someone to sit with her once a week and go through the same steps slowly until they stick. Coffee and cake are guaranteed.',
+    duties: [
+      'Walk through opening and answering a video call',
+      'Write the steps on a card in large print',
+      'Practice until she can do it on her own',
+    ],
+    poster: {
+      name: 'Sofia Marchetti',
+      avatarUrl: photo('1580489944761-15a19d654956'),
+      rating: 4.9,
+      jobsPosted: 8,
+    },
+  },
+  {
+    id: 'g14',
+    title: 'SAT Prep Sessions',
+    price: 45,
+    rateType: 'hourly',
+    category: 'tutoring',
+    place: 'Aventura, FL',
+    distanceMi: 4.7,
+    tags: ['Tutoring', 'Recurring', 'Test prep'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 1200,
+    imageUrl: photo('1544947950-fa07a98d237f'),
+    description:
+      'A junior trying to turn an 1180 into something in the 1300s before the spring test date. We want two sessions a week aimed squarely at the math section and at pacing. The official practice books are already on the shelf.',
+    duties: [
+      'Run one timed math section every session',
+      'Review every wrong answer out loud',
+      'Assign a short drill set between sessions',
+    ],
+    poster: {
+      name: 'Kevin Oyelaran',
+      avatarUrl: photo('1531123897727-8f129e1688ce'),
+      rating: 4.8,
+      jobsPosted: 10,
+    },
+  },
+  {
+    id: 'g15',
+    title: 'Bike Delivery for Local Cafe',
+    price: 18,
+    rateType: 'hourly',
+    category: 'errands',
+    place: 'Miami Beach',
+    distanceMi: 3.4,
+    tags: ['Errands', 'Recurring', 'Bike'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 30,
+    imageUrl: photo('1485965120184-e220f721d03e'),
+    description:
+      'A small cafe on Collins needs someone to run lunch orders inside a ten block radius. Shifts are eleven to two on weekdays and you ride your own bike. Tips are yours and come to about ten dollars on a normal shift.',
+    duties: [
+      'Pick up orders at the counter when they are called',
+      'Deliver inside ten blocks and confirm each drop',
+      'Bring the insulated bag back at the end of the shift',
+    ],
+    poster: {
+      name: 'Marco Bianchi',
+      avatarUrl: null,
+      rating: 4.5,
+      jobsPosted: 19,
+    },
+  },
+  {
+    id: 'g16',
+    title: 'Pool Deck Pressure Washing',
+    price: 110,
+    rateType: 'fixed',
+    category: 'cleaning',
+    place: 'Golden Beach, FL',
+    distanceMi: 4.3,
+    tags: ['Outdoor', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 2000,
+    imageUrl: photo('1520340356584-f9917d1eea6f'),
+    description:
+      'The pavers around the pool have gone green in the shady corners and need a proper pressure wash. I own the washer and the extension cord reaches all the way around. Expect three hours and a very wet pair of shoes.',
+    duties: [
+      'Pressure wash the pool deck and the steps',
+      'Rinse the furniture off and put it back',
+      'Coil the hose and store the washer in the shed',
+    ],
+    poster: {
+      name: 'Elaine Porter',
+      avatarUrl: photo('1517841905240-472988babdf9'),
+      rating: 4.8,
+      jobsPosted: 13,
+    },
+  },
+  {
+    id: 'g17',
+    title: 'Walk Two Huskies Every Morning',
+    price: 35,
+    rateType: 'fixed',
+    category: 'pets',
+    place: 'Bay Harbor Islands, FL',
+    distanceMi: 1.4,
+    tags: ['Pets', 'Recurring', 'Mornings'],
+    scheduleType: 'recurring',
+    postedMinutesAgo: 500,
+    imageUrl: photo('1517849845537-4d257902454a'),
+    description:
+      'Two huskies with a lot of opinions need a real forty-five minute walk at seven, before the heat. They pull for the first block and settle down after that. The harnesses and the waste bags hang by the front door.',
+    duties: [
+      'Walk both huskies for forty-five minutes',
+      'Wipe their paws before they come back inside',
+      'Top up the food and water before you leave',
+    ],
+    poster: {
+      name: 'Nadia Petrov',
+      avatarUrl: photo('1524504388940-b1c1722653e1'),
+      rating: 4.9,
+      jobsPosted: 21,
+    },
+  },
+  {
+    id: 'g18',
+    title: 'Help Unload a Moving Truck',
+    price: 70,
+    rateType: 'fixed',
+    category: 'moving',
+    place: 'Hollywood, FL',
+    distanceMi: 11.4,
+    tags: ['Moving', 'Heavy lifting', 'One-time'],
+    scheduleType: 'one-time',
+    postedMinutesAgo: 3200,
+    imageUrl: photo('1600585154340-be6161a56a0c'),
+    description:
+      'A twenty foot truck lands Saturday morning and needs two people to empty it into a ground floor unit. The furniture is already wrapped and there are no stairs anywhere. Water and lunch are on me.',
+    duties: [
+      'Unload boxes and wrapped furniture',
+      'Put each item in the room it is labelled for',
+      'Flatten the packing paper and fold the blankets',
+    ],
+    poster: {
+      name: 'Curtis Alvarez',
+      avatarUrl: photo('1500648767791-00dcc994a43e'),
+      rating: 4.3,
+      jobsPosted: 2,
+    },
+  },
+];
+
+// ── Past jobs ─────────────────────────────────────────────────────────────────
+
+export const PAST_JOBS: PastJob[] = [
+  {
+    id: 'pj1',
+    title: 'Lawn Mowing',
+    category: 'yard',
+    client: 'Maria Delgado',
+    date: '2026-09-12',
+    payout: 40,
+    rating: 5,
+    imageUrl: photo('1589923188900-85dae523342b'),
+  },
+  {
+    id: 'pj2',
+    title: 'Dog Walking (Full Week)',
+    category: 'pets',
+    client: 'Daniel Roth',
+    date: '2026-09-08',
+    payout: 125,
+    rating: 5,
+    imageUrl: photo('1552053831-71594a27632d'),
+  },
+  {
+    id: 'pj3',
+    title: 'Math Tutoring (HS)',
+    category: 'tutoring',
+    client: 'Ana Costa',
+    date: '2026-09-03',
+    payout: 70,
+    rating: 5,
+    imageUrl: photo('1434030216411-0b793f4b4173'),
+  },
+  {
+    id: 'pj4',
+    title: 'Garage Clean-Out',
+    category: 'moving',
+    client: 'Victor Nunes',
+    date: '2026-08-27',
+    payout: 140,
+    rating: 4,
+    imageUrl: photo('1530124566582-a618bc2615dc'),
+  },
+  {
+    id: 'pj5',
+    title: 'Weekly Apartment Cleaning',
+    category: 'cleaning',
+    client: 'Lena Whitfield',
+    date: '2026-08-19',
+    payout: 75,
+    rating: 5,
+    imageUrl: photo('1581578731548-c64695cc6952'),
+  },
+  {
+    id: 'pj6',
+    title: 'Hedge Trimming',
+    category: 'yard',
+    client: 'Greg Lindqvist',
+    date: '2026-08-08',
+    payout: 85,
+    rating: 5,
+    imageUrl: photo('1466692476868-aef1dfb1e735'),
+  },
+  {
+    id: 'pj7',
+    title: 'Laptop & Printer Setup',
+    category: 'tech',
+    client: 'Harold Stein',
+    date: '2026-07-30',
+    payout: 55,
+    rating: 4,
+    imageUrl: null,
+  },
+  {
+    id: 'pj8',
+    title: 'Cat Sitting (Long Weekend)',
+    category: 'pets',
+    client: 'Camille Ortiz',
+    date: '2026-07-18',
+    payout: 90,
+    rating: 5,
+    imageUrl: photo('1514888286974-6c03e2ca1dba'),
+  },
+  {
+    id: 'pj9',
+    title: 'Grocery Run & Pharmacy Pickup',
+    category: 'errands',
+    client: 'Ruth Kaminsky',
+    date: '2026-07-05',
+    payout: 22,
+    rating: 5,
+    imageUrl: null,
+  },
+  {
+    id: 'pj10',
+    title: 'Help Moving Boxes',
+    category: 'moving',
+    client: 'Priya Raman',
+    date: '2026-06-21',
+    payout: 60,
+    rating: 5,
+    imageUrl: photo('1600518464441-9154a4dea21b'),
+  },
+];
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+//
+// REVIEWS[0] is the quote the Analytics review card renders verbatim.
+
+export const REVIEWS: Review[] = [
+  {
+    id: 'r1',
+    author: 'Sarah M.',
+    role: 'Homeowner',
+    avatarUrl: photo('1494790108377-be9c29b29330'),
+    rating: 5,
+    date: '2026-09-12',
+    body: 'Super reliable and did an amazing job. Highly recommend!',
+    jobTitle: 'Lawn Mowing',
+  },
+  {
+    id: 'r2',
+    author: 'Daniel R.',
+    role: 'Dog owner',
+    avatarUrl: photo('1507003211169-0a1dd7228f2d'),
+    rating: 5,
+    date: '2026-09-08',
+    body: 'Cooper waits by the door now. Photo after every walk and never once late.',
+    jobTitle: 'Dog Walking',
+  },
+  {
+    id: 'r3',
+    author: 'Ana C.',
+    role: 'Parent',
+    avatarUrl: photo('1544005313-94ddf0286df2'),
+    rating: 5,
+    date: '2026-09-03',
+    body: 'My daughter went from a C to an A- in one quarter, and he explains things without ever making her feel slow.',
+    jobTitle: 'Math Tutoring (HS)',
+  },
+  {
+    id: 'r4',
+    author: 'Victor N.',
+    role: 'Homeowner',
+    avatarUrl: null,
+    rating: 4,
+    date: '2026-08-27',
+    body: 'Worked straight through a hot afternoon without complaining once. The garage looks like a different room.',
+    jobTitle: 'Garage Clean-Out',
+  },
+  {
+    id: 'r5',
+    author: 'Lena W.',
+    role: 'Condo owner',
+    avatarUrl: photo('1534528741775-53994a69daeb'),
+    rating: 5,
+    date: '2026-08-19',
+    body: 'Left the place spotless and did the balcony without being asked.',
+    jobTitle: 'Weekly Apartment Cleaning',
+  },
+  {
+    id: 'r6',
+    author: 'Greg L.',
+    role: 'Homeowner',
+    avatarUrl: photo('1502823403499-6ccfcf4fb453'),
+    rating: 5,
+    date: '2026-08-08',
+    body: 'The hedge is straighter than when the landscapers did it, and he picked up every clipping.',
+    jobTitle: 'Hedge Trimming',
+  },
+  {
+    id: 'r7',
+    author: 'Harold S.',
+    role: 'Retiree',
+    avatarUrl: null,
+    rating: 4,
+    date: '2026-07-30',
+    body: 'Patient with a lot of questions and wrote my passwords down on paper the way I asked.',
+    jobTitle: 'Laptop & Printer Setup',
+  },
+  {
+    id: 'r8',
+    author: 'Camille O.',
+    role: 'Cat owner',
+    avatarUrl: photo('1524504388940-b1c1722653e1'),
+    rating: 5,
+    date: '2026-07-18',
+    body: 'Daily photos all weekend and the litter boxes were cleaner than I leave them.',
+    jobTitle: 'Cat Sitting (Long Weekend)',
+  },
+  {
+    id: 'r9',
+    author: 'Ruth K.',
+    role: 'Neighbor',
+    avatarUrl: photo('1517841905240-472988babdf9'),
+    rating: 5,
+    date: '2026-07-05',
+    body: 'Back with the groceries and the prescription in under an hour, receipt already in my texts.',
+    jobTitle: 'Grocery Run & Pharmacy Pickup',
+  },
+  {
+    id: 'r10',
+    author: 'Priya R.',
+    role: 'Renter',
+    avatarUrl: photo('1438761681033-6461ffad8d80'),
+    rating: 5,
+    date: '2026-06-21',
+    body: 'Showed up early, carried more than anyone else and did not drop a single box.',
+    jobTitle: 'Help Moving Boxes',
+  },
+  {
+    id: 'r11',
+    author: 'Marco B.',
+    role: 'Cafe owner',
+    avatarUrl: photo('1506794778202-cad84cf45f1d'),
+    rating: 5,
+    date: '2026-06-10',
+    body: 'Quick on the bike and good with customers. Two regulars asked for him by name.',
+    jobTitle: 'Bike Delivery for Local Cafe',
+  },
+  {
+    id: 'r12',
+    author: 'Sofia M.',
+    role: 'Granddaughter',
+    avatarUrl: photo('1580489944761-15a19d654956'),
+    rating: 5,
+    date: '2026-05-29',
+    body: 'Sat with my grandmother for an hour and never sounded impatient. She calls her sister every Sunday now.',
+    jobTitle: 'Teach Grandma Video Calls',
+  },
+];
+
+// ── Lifetime review totals ────────────────────────────────────────────────────
+//
+// REVIEWS above holds the twelve most recent bodies — what a real client would
+// page through. These are the totals across the whole history, which is what the
+// analytics card and the Reviews header report.
+
+export const REVIEW_COUNT: number = 42;
+
+/** Star buckets across all REVIEW_COUNT reviews. Weighted average: 4.9. */
+export const RATING_BUCKETS: Record<1 | 2 | 3 | 4 | 5, number> = {
+  5: 39,
+  4: 3,
+  3: 0,
+  2: 0,
+  1: 0,
+};
+
+export const LIFETIME_RATING: number = 4.9;
+
+// ── Earnings ──────────────────────────────────────────────────────────────────
+//
+// Every range keeps the same two invariants: the breakdown amounts add up to the
+// total and the percents add up to 100. The chart shows the buckets inside the
+// range, with the current (last) bucket tallest and rendered white.
+
+export const EARNINGS_BY_RANGE: Record<TimeRange, EarningsSummary> = {
+  week: {
+    range: 'week',
+    total: 218,
+    deltaPercent: 27,
+    deltaAmount: 46,
+    chart: [
+      { label: 'Tue', value: 40 },
+      { label: 'Wed', value: 55 },
+      { label: 'Thu', value: 45 },
+      { label: 'Fri', value: 78 },
+    ],
+    jobsCompleted: 5,
+    avgRating: 5,
+    newClients: 3,
+    breakdown: [
+      { category: 'yard', amount: 84, percent: 39, jobs: 2 },
+      { category: 'tutoring', amount: 62, percent: 28, jobs: 1 },
+      { category: 'pets', amount: 40, percent: 18, jobs: 1 },
+      { category: 'errands', amount: 32, percent: 15, jobs: 1 },
+    ],
+  },
+  // The numbers in docs/DESIGN.md section 4. Do not drift from these.
+  month: {
+    range: 'month',
+    total: 842,
+    deltaPercent: 28,
+    deltaAmount: 184,
+    chart: [
+      { label: 'Jun', value: 410 },
+      { label: 'Jul', value: 520 },
+      { label: 'Aug', value: 658 },
+      { label: 'Sep', value: 842 },
+    ],
+    jobsCompleted: 12,
+    avgRating: 4.9,
+    newClients: 18,
+    breakdown: [
+      { category: 'yard', amount: 320, percent: 38, jobs: 5 },
+      { category: 'tutoring', amount: 210, percent: 25, jobs: 3 },
+      { category: 'moving', amount: 180, percent: 21, jobs: 2 },
+      { category: 'pets', amount: 132, percent: 16, jobs: 2 },
+    ],
+  },
+  quarter: {
+    range: 'quarter',
+    total: 2020,
+    deltaPercent: 42,
+    deltaAmount: 600,
+    chart: [
+      { label: 'Jul', value: 520 },
+      { label: 'Aug', value: 658 },
+      { label: 'Sep', value: 842 },
+    ],
+    jobsCompleted: 31,
+    avgRating: 4.9,
+    newClients: 34,
+    breakdown: [
+      { category: 'yard', amount: 768, percent: 38, jobs: 12 },
+      { category: 'tutoring', amount: 505, percent: 25, jobs: 8 },
+      { category: 'moving', amount: 424, percent: 21, jobs: 5 },
+      { category: 'pets', amount: 323, percent: 16, jobs: 6 },
+    ],
+  },
+  year: {
+    // Quarterly buckets labelled by the month each quarter ends in.
+    range: 'year',
+    total: 4420,
+    deltaPercent: 47,
+    deltaAmount: 1410,
+    chart: [
+      { label: 'Mar', value: 980 },
+      { label: 'Jun', value: 1420 },
+      { label: 'Sep', value: 2020 },
+    ],
+    jobsCompleted: 69,
+    avgRating: 4.8,
+    newClients: 57,
+    breakdown: [
+      { category: 'yard', amount: 1502, percent: 34, jobs: 24 },
+      { category: 'tutoring', amount: 1017, percent: 23, jobs: 15 },
+      { category: 'moving', amount: 751, percent: 17, jobs: 9 },
+      { category: 'pets', amount: 575, percent: 13, jobs: 11 },
+      { category: 'cleaning', amount: 354, percent: 8, jobs: 6 },
+      { category: 'tech', amount: 221, percent: 5, jobs: 4 },
+    ],
+  },
+  all: {
+    // Two bars because the account was opened in June 2025.
+    range: 'all',
+    total: 6350,
+    deltaPercent: 129,
+    deltaAmount: 2490,
+    chart: [
+      { label: '2025', value: 1930 },
+      { label: '2026', value: 4420 },
+    ],
+    jobsCompleted: 102,
+    avgRating: 4.8,
+    newClients: 74,
+    breakdown: [
+      { category: 'yard', amount: 2032, percent: 32, jobs: 34 },
+      { category: 'tutoring', amount: 1461, percent: 23, jobs: 21 },
+      { category: 'moving', amount: 1080, percent: 17, jobs: 13 },
+      { category: 'pets', amount: 826, percent: 13, jobs: 16 },
+      { category: 'cleaning', amount: 508, percent: 8, jobs: 9 },
+      { category: 'tech', amount: 317, percent: 5, jobs: 6 },
+      { category: 'errands', amount: 126, percent: 2, jobs: 3 },
+    ],
+  },
+};
+
+export const TIME_RANGES: TimeRangeOption[] = [
+  { id: 'week', label: 'This Week', comparisonLabel: 'last week' },
+  { id: 'month', label: 'This Month', comparisonLabel: 'last month' },
+  { id: 'quarter', label: 'Last 3 Months', comparisonLabel: 'last quarter' },
+  { id: 'year', label: 'This Year', comparisonLabel: 'last year' },
+  { id: 'all', label: 'All Time', comparisonLabel: 'the previous period' },
+];
+
+// ── Places ────────────────────────────────────────────────────────────────────
+
+export const NEARBY_PLACES: Place[] = [
+  { id: 'p1', label: 'Surfside, FL', distanceMi: 0 },
+  { id: 'p2', label: 'Bal Harbour, FL', distanceMi: 0.8 },
+  { id: 'p3', label: 'Bay Harbor Islands, FL', distanceMi: 1.2 },
+  { id: 'p4', label: 'Miami Beach, FL', distanceMi: 2.4 },
+  { id: 'p5', label: 'Sunny Isles Beach, FL', distanceMi: 3.1 },
+  { id: 'p6', label: 'North Bay Village, FL', distanceMi: 3.6 },
+  { id: 'p7', label: 'Aventura, FL', distanceMi: 5.1 },
+  { id: 'p8', label: 'North Miami Beach, FL', distanceMi: 5.8 },
+];
+
+// ── Hire side ─────────────────────────────────────────────────────────────────
+
+export const WORKERS: Worker[] = [
+  {
+    id: 'w1',
+    name: 'Maya Alvarez',
+    headline: 'Yard work and pressure washing',
+    avatarUrl: photo('1544005313-94ddf0286df2'),
+    rating: 4.9,
+    jobs: 64,
+    distanceMi: 0.6,
+    startingPrice: 25,
+    categories: ['yard', 'cleaning'],
+    verified: true,
+  },
+  {
+    id: 'w2',
+    name: 'Isaiah Brooks',
+    headline: 'Moving help and heavy lifting',
+    avatarUrl: photo('1500648767791-00dcc994a43e'),
+    rating: 4.8,
+    jobs: 41,
+    distanceMi: 1.2,
+    startingPrice: 30,
+    categories: ['moving', 'errands'],
+    verified: true,
+  },
+  {
+    id: 'w3',
+    name: 'Chloe Nguyen',
+    headline: 'Math and SAT tutoring, grades 6-12',
+    avatarUrl: photo('1517841905240-472988babdf9'),
+    rating: 5,
+    jobs: 28,
+    distanceMi: 1.9,
+    startingPrice: 35,
+    categories: ['tutoring'],
+    verified: true,
+  },
+  {
+    id: 'w4',
+    name: 'Andre Simmons',
+    headline: 'Dog walking and weekend pet sitting',
+    avatarUrl: photo('1531123897727-8f129e1688ce'),
+    rating: 4.7,
+    jobs: 53,
+    distanceMi: 2.4,
+    startingPrice: 20,
+    categories: ['pets'],
+    verified: false,
+  },
+  {
+    id: 'w5',
+    name: 'Bella Ferreira',
+    headline: 'Deep cleaning and move-out resets',
+    avatarUrl: null,
+    rating: 4.9,
+    jobs: 37,
+    distanceMi: 3.3,
+    startingPrice: 28,
+    categories: ['cleaning'],
+    verified: true,
+  },
+  {
+    id: 'w6',
+    name: 'Omar Haddad',
+    headline: 'Phone, laptop and wifi help',
+    avatarUrl: photo('1506794778202-cad84cf45f1d'),
+    rating: 4.6,
+    jobs: 19,
+    distanceMi: 4.1,
+    startingPrice: 22,
+    categories: ['tech', 'errands'],
+    verified: false,
+  },
+];
+
+/** The two services the user already has listed. */
+export const SERVICES: Service[] = [
+  {
+    id: 'svc_1',
+    title: 'Lawn Mowing & Edging',
+    category: 'yard',
+    rate: 35,
+    rateType: 'fixed',
+    description:
+      'Mow, edge and bag for any yard up to a quarter acre. I bring my own trimmer and haul the clippings to the curb.',
+    availability: ['Sat', 'Sun'],
+    place: 'Surfside, FL',
+    active: true,
+    views: 248,
+    requests: 9,
+  },
+  {
+    id: 'svc_2',
+    title: 'Algebra & Geometry Tutoring',
+    category: 'tutoring',
+    rate: 28,
+    rateType: 'hourly',
+    description:
+      'One on one help for middle and high school math, at your kitchen table or over video.',
+    availability: ['Mon', 'Wed', 'Thu'],
+    place: 'Surfside, FL',
+    active: false,
+    views: 132,
+    requests: 4,
+  },
+];
+
+export const HIRE_REQUESTS: HireRequest[] = [
+  {
+    id: 'req_1',
+    title: 'Wash and vacuum my car',
+    category: 'cleaning',
+    budget: 45,
+    when: 'This Saturday morning',
+    description:
+      'A sedan that has not been washed since the spring. Hose, bucket and vacuum are all in the garage.',
+    status: 'open',
+    applicants: 3,
+    postedMinutesAgo: 150,
+  },
+  {
+    id: 'req_2',
+    title: 'Help carry a couch up one flight',
+    category: 'moving',
+    budget: 60,
+    when: 'Sunday afternoon',
+    description:
+      'Two seater couch coming off a truck and up one flight of stairs. Should take under an hour with two people.',
+    status: 'hired',
+    applicants: 7,
+    postedMinutesAgo: 2880,
+  },
+];
