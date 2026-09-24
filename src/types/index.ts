@@ -171,6 +171,14 @@ export interface ProviderService {
   faq: ServiceFAQ[];
   packages: ServicePackage[];
   portfolio_examples: string[];
+  /** Whether starting_price is per hour or for the whole job. Migration 017. */
+  pricing_type: 'fixed' | 'hourly';
+  /** How long the job takes. Null on services posted before migration 017. */
+  duration_minutes: number | null;
+  /** Place label the service is offered in, e.g. "Surfside, FL". */
+  location: string | null;
+  /** Short day labels, Mon -> Sun: 'Mon' | 'Tue' | ... */
+  availability_days: string[];
   rating: number;
   review_count: number;
   is_active: boolean;

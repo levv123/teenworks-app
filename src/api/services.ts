@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { supabase } from './supabase';
@@ -57,8 +58,12 @@ export async function getServicesForProvider(providerId: string): Promise<Provid
   return data ?? [];
 }
 
+/** Columns added by migration 017. The database defaults them, so callers may leave them out. */
+type PostServiceColumns = 'pricing_type' | 'duration_minutes' | 'location' | 'availability_days';
+
 export async function createService(
-  service: Omit<ProviderService, 'id' | 'rating' | 'review_count' | 'created_at' | 'updated_at' | 'category'>,
+  service: Omit<ProviderService, 'id' | 'rating' | 'review_count' | 'created_at' | 'updated_at' | 'category' | PostServiceColumns>
+    & Partial<Pick<ProviderService, PostServiceColumns>>,
 ): Promise<ProviderService> {
   const { data, error } = await supabase
     .from('provider_services')
@@ -74,7 +79,7 @@ export async function updateService(
   id: string,
   updates: Partial<Pick<
     ProviderService,
-    'title' | 'description' | 'starting_price' | 'delivery_days' | 'is_active' | 'category_id' | 'images' | 'faq' | 'packages' | 'portfolio_examples'
+    'title' | 'description' | 'starting_price' | 'delivery_days' | 'is_active' | 'category_id' | 'images' | 'faq' | 'packages' | 'portfolio_examples' | PostServiceColumns
   >>,
 ): Promise<void> {
   const { error } = await supabase
@@ -117,17 +122,31 @@ export async function analyzeService(service: ProviderService): Promise<ServiceA
 }
 
 export async function uploadServiceImage(uri: string, userId: string): Promise<string> {
-  const name = uri.split('/').pop() ?? 'image.jpg';
-  const storagePath = `service-images/${userId}/${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  let binary: Uint8Array;
+  let name: string;
+  let contentType = 'image/jpeg';
 
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  if (Platform.OS === 'web') {
+    // On web the picker hands back a data: or blob: URI. expo-file-system can't
+    // read those, and the last path segment of a data: URI is the whole base64
+    // payload, so neither can be used as on native.
+    const blob = await (await fetch(uri)).blob();
+    binary = new Uint8Array(await blob.arrayBuffer());
+    if (blob.type) contentType = blob.type;
+    name = `image.${contentType.split('/')[1] ?? 'jpg'}`;
+  } else {
+    name = uri.split('/').pop() ?? 'image.jpg';
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  }
+
+  const storagePath = `service-images/${userId}/${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
 
   const { error } = await supabase.storage
     .from('portfolio')
-    .upload(storagePath, binary, { contentType: 'image/jpeg', upsert: false });
+    .upload(storagePath, binary, { contentType, upsert: false });
 
   if (error) throw error;
 
