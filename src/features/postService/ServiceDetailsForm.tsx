@@ -24,6 +24,17 @@ import { PhotoStrip } from './PhotoStrip';
 /** The input's own height: 14 + 21 + 14 of padding and line, plus its 1px border. */
 const FIELD_HEIGHT = 51;
 
+/**
+ * Whole dollars as digits: every price in the app is shown without cents.
+ * Cents are cut rather than merged ("25.00" is 25, not 2500), symbols and
+ * separators dropped ("$1,200" is 1200), and length capped only after that, so
+ * a pasted "$125" isn't clipped to "12" first. Four digits is enough for the
+ * over-the-limit message to show.
+ */
+function wholeDollars(text: string): string {
+  return text.split('.')[0].replace(/[^0-9]/g, '').slice(0, 4);
+}
+
 export interface ServiceDetailsFormProps {
   form: PostServiceForm;
   errorFor: (key: FieldKey) => string | undefined;
@@ -102,12 +113,10 @@ export function ServiceDetailsForm({
         <TextField
           label="Price"
           value={form.rate}
-          // Whole dollars only: every price in the app is shown without cents.
-          onChangeText={(next) => onChange({ rate: next.replace(/[^0-9]/g, '') }, 'rate')}
+          onChangeText={(next) => onChange({ rate: wholeDollars(next) }, 'rate')}
           placeholder="25"
           prefix="$"
           keyboardType="number-pad"
-          maxLength={3}
           error={errorFor('rate')}
           style={styles.priceField}
         />
@@ -122,7 +131,9 @@ export function ServiceDetailsForm({
                   onPress={() => onChange({ rateType: option.id }, 'rateType')}
                   accessibilityRole="radio"
                   accessibilityLabel={option.label}
-                  accessibilityState={{ selected }}
+                  accessibilityState={{ checked: selected }}
+                  // react-native-web drops accessibilityState; this reaches the DOM.
+                  aria-checked={selected}
                   style={({ pressed }) => [
                     styles.segment,
                     selected && styles.segmentSelected,
@@ -151,7 +162,8 @@ export function ServiceDetailsForm({
                 onPress={() => onChange({ duration: option.id }, 'duration')}
                 accessibilityRole="radio"
                 accessibilityLabel={option.label}
-                accessibilityState={{ selected }}
+                accessibilityState={{ checked: selected }}
+                aria-checked={selected}
                 style={({ pressed }) => [
                   styles.chip,
                   selected ? styles.optionSelected : styles.optionIdle,
@@ -190,6 +202,7 @@ export function ServiceDetailsForm({
                 accessibilityRole="checkbox"
                 accessibilityLabel={day}
                 accessibilityState={{ checked: selected }}
+                aria-checked={selected}
                 style={({ pressed }) => [
                   styles.day,
                   index < DAYS.length - 1 && styles.dayGap,

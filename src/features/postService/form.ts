@@ -54,16 +54,16 @@ export const DETAIL_FIELDS: FieldKey[] = [
   'availability',
 ];
 
-/** How the "Still needed:" line names each field. */
+/** How the "To preview, fix:" line names each field: its label on the form. */
 export const FIELD_NAMES: Record<FieldKey, string> = {
   category: 'category',
   title: 'title',
   description: 'description',
   rate: 'price',
-  rateType: 'hourly or fixed',
+  rateType: 'pricing',
   duration: 'duration',
   place: 'location',
-  availability: 'available days',
+  availability: 'availability',
 };
 
 export function emptyForm(place: string): PostServiceForm {

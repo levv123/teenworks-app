@@ -16,4 +16,4 @@ export type { Step, StepIndicatorProps } from './StepIndicator';
 
 export * from './constants';
 export * from './form';
-export { publishDraft, signedInUserId } from './publish';
+export { isStoredPhoto, publishDraft, signedInUserId } from './publish';

@@ -58,8 +58,8 @@ export function durationMinutes(id: DurationId): number {
 
 // The minimums, DESCRIPTION_MAX and RATE_MAX are the previous form's, so a
 // service saved through it still validates when edited here. MAX_PHOTOS matches
-// the older service editor. TITLE_MAX only caps typing: it keeps a title to
-// the two lines the preview gives it.
+// the older service editor. TITLE_MAX only caps typing, so a title stays
+// listing-length beside the price in the preview.
 export const TITLE_MIN = 4;
 export const TITLE_MAX = 60;
 export const DESCRIPTION_MIN = 20;

@@ -8,7 +8,6 @@
  */
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -28,8 +27,6 @@ export interface PhotoStripProps {
   photos: string[];
   onAdd: () => void;
   onRemove: (index: number) => void;
-  /** True while the picker is open, so a second tap can't open another. */
-  picking?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -75,34 +72,27 @@ function Thumb({
   );
 }
 
-export function PhotoStrip({ photos, onAdd, onRemove, picking = false, style }: PhotoStripProps) {
+export function PhotoStrip({ photos, onAdd, onRemove, style }: PhotoStripProps) {
   const full = photos.length >= MAX_PHOTOS;
 
   if (photos.length === 0) {
     return (
       <Pressable
-        onPress={picking ? undefined : onAdd}
-        disabled={picking}
+        onPress={onAdd}
         accessibilityRole="button"
         accessibilityLabel="Add photos"
         accessibilityHint="The first photo becomes the cover of your listing"
         style={({ pressed }) => [styles.panel, style, pressed && styles.pressed]}
       >
-        {picking ? (
-          <ActivityIndicator color={C.text} />
-        ) : (
-          <>
-            <View style={styles.panelIcon}>
-              <Ionicons name="camera-outline" size={22} color={C.text} />
-            </View>
-            <AppText variant="bodyBold" style={styles.panelTitle}>
-              Add photos
-            </AppText>
-            <AppText variant="small" color={C.textMuted} style={styles.panelHint}>
-              {`Show your work. Up to ${MAX_PHOTOS}, and the first is your cover.`}
-            </AppText>
-          </>
-        )}
+        <View style={styles.panelIcon}>
+          <Ionicons name="camera-outline" size={22} color={C.text} />
+        </View>
+        <AppText variant="bodyBold" style={styles.panelTitle}>
+          Add photos
+        </AppText>
+        <AppText variant="small" color={C.textMuted} style={styles.panelHint}>
+          {`Show your work. Up to ${MAX_PHOTOS}, and the first is your cover.`}
+        </AppText>
       </Pressable>
     );
   }
@@ -121,22 +111,15 @@ export function PhotoStrip({ photos, onAdd, onRemove, picking = false, style }: 
         ))}
         {full ? null : (
           <Pressable
-            onPress={picking ? undefined : onAdd}
-            disabled={picking}
+            onPress={onAdd}
             accessibilityRole="button"
             accessibilityLabel="Add another photo"
             style={({ pressed }) => [styles.thumb, styles.addTile, pressed && styles.pressed]}
           >
-            {picking ? (
-              <ActivityIndicator color={C.text} />
-            ) : (
-              <>
-                <Ionicons name="add" size={22} color={C.text} />
-                <AppText variant="tiny" color={C.textMuted} style={styles.addLabel}>
-                  Add
-                </AppText>
-              </>
-            )}
+            <Ionicons name="add" size={22} color={C.text} />
+            <AppText variant="tiny" color={C.textMuted} style={styles.addLabel}>
+              Add
+            </AppText>
           </Pressable>
         )}
       </ScrollView>

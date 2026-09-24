@@ -82,7 +82,12 @@ function draftColumns(draft: ServiceDraftInput, categoryId: string) {
  */
 async function ensureProviderProfile(userId: string): Promise<void> {
   if (await getProviderProfile(userId)) return;
-  await createProviderProfile({ user_id: userId });
+  try {
+    await createProviderProfile({ user_id: userId });
+  } catch (err) {
+    // 23505: another first post (say, in a second tab) created it in between.
+    if ((err as { code?: string } | null)?.code !== '23505') throw err;
+  }
 }
 
 /** Publishes a new service for the signed-in user. */

@@ -25,15 +25,20 @@ export async function signedInUserId(): Promise<string | null> {
   }
 }
 
-/** A URL that is already in storage, as opposed to a picker URI still on the device. */
-const UPLOADED = /^https?:\/\//i;
+/**
+ * True for a photo already in storage, false for a picker URI (blob:, file:)
+ * that only means something on this device, and on web only until a reload.
+ */
+export function isStoredPhoto(uri: string): boolean {
+  return /^https?:\/\//i.test(uri);
+}
 
 /** Uploads the photos that are still local, in order, keeping the ones already uploaded. */
 async function uploadPhotos(photos: string[], userId: string): Promise<string[]> {
   const urls: string[] = [];
   // One at a time, so a failure names a single photo and keeps the order stable.
   for (const uri of photos) {
-    urls.push(UPLOADED.test(uri) ? uri : await uploadServiceImage(uri, userId));
+    urls.push(isStoredPhoto(uri) ? uri : await uploadServiceImage(uri, userId));
   }
   return urls;
 }
@@ -42,13 +47,18 @@ async function uploadPhotos(photos: string[], userId: string): Promise<string[]>
  * Saves the draft to Supabase and returns it as saved: photo URLs in place of
  * device URIs, and remoteId set to the provider_services row. With a remoteId
  * it updates that row instead of creating one.
+ *
+ * onUploaded gets the photo URLs as soon as they are in storage, so a caller
+ * whose save then fails can keep them and not upload the same photos again.
  */
 export async function publishDraft(
   draft: ServiceDraft,
   userId: string,
   remoteId?: string,
+  onUploaded?: (images: string[]) => void,
 ): Promise<ServiceDraft> {
   const images = await uploadPhotos(draft.images ?? [], userId);
+  onUploaded?.(images);
   const saved: ServiceDraft = { ...draft, images };
 
   if (remoteId !== undefined) {
