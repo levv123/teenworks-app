@@ -17,7 +17,12 @@ export type CategoryId =
   | 'pets'
   | 'cleaning'
   | 'tech'
-  | 'errands';
+  | 'errands'
+  /**
+   * Post a Service's "More" tile, for work that fits none of the above. It is
+   * deliberately absent from CATEGORIES, so no chip row or filter lists it.
+   */
+  | 'other';
 
 export interface Category {
   id: CategoryId;
@@ -77,6 +82,12 @@ export interface Service {
   active: boolean;
   views: number;
   requests: number;
+  /** Photo URLs, cover first. Absent on services posted before photos existed. */
+  images?: string[];
+  /** How long the job takes. Absent on services posted before it was asked. */
+  durationMinutes?: number;
+  /** The provider_services row id when the service was also saved to Supabase. */
+  remoteId?: string;
 }
 
 export interface ServiceDraft {
@@ -87,6 +98,9 @@ export interface ServiceDraft {
   description: string;
   availability: string[];
   place: string;
+  images?: string[];
+  durationMinutes?: number;
+  remoteId?: string;
 }
 
 export interface PastJob {

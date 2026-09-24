@@ -45,7 +45,15 @@ export const CATEGORIES: Category[] = [
   { id: 'errands', label: 'Errands', icon: 'bicycle-outline', color: '#FFD60A' },
 ];
 
-export const CATEGORY_BY_ID: Record<CategoryId, Category> = CATEGORIES.reduce(
+/** Post a Service's "More" pick. Kept out of CATEGORIES so no chip row or filter shows it. */
+const OTHER_CATEGORY: Category = {
+  id: 'other',
+  label: 'Other',
+  icon: 'ellipsis-horizontal-outline',
+  color: C.textMuted,
+};
+
+export const CATEGORY_BY_ID: Record<CategoryId, Category> = [...CATEGORIES, OTHER_CATEGORY].reduce(
   (acc, category) => {
     acc[category.id] = category;
     return acc;

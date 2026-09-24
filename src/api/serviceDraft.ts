@@ -5,7 +5,7 @@
  *
  * Field map, form -> column:
  *   title          -> title
- *   category slug  -> category_id (resolved by category name)
+ *   category slug  -> category_id (resolved by category name; 'other' from migration 018)
  *   description    -> description
  *   images         -> images (URLs from uploadServiceImage)
  *   rate           -> starting_price
@@ -18,18 +18,18 @@
 import type { CategoryId, Service, ServiceDraft } from '../data/types';
 import type { Category, ProviderService } from '../types';
 import { createProviderProfile, getProviderProfile } from './auth';
-import { getCategories } from './requests';
 import { createService, updateService } from './services';
+import { supabase } from './supabase';
 
 type ServiceCategoryId = Exclude<CategoryId, 'all'>;
 
-/** Form fields the current draft type doesn't carry yet; both are optional columns. */
-export type ServiceDraftInput = ServiceDraft & {
-  images?: string[];
-  durationMinutes?: number | null;
-};
+/** images and durationMinutes are optional on the draft; both columns accept "none". */
+export type ServiceDraftInput = ServiceDraft;
 
-/** categories.name for each form category. Yard Work, Tech Help and Errands come from migration 017. */
+/**
+ * categories.name for each form category. Yard Work, Tech Help and Errands come
+ * from migration 017, Other from migration 018.
+ */
 export const CATEGORY_NAME: Record<ServiceCategoryId, string> = {
   yard: 'Yard Work',
   tutoring: 'Tutoring',
@@ -38,13 +38,26 @@ export const CATEGORY_NAME: Record<ServiceCategoryId, string> = {
   cleaning: 'Cleaning',
   tech: 'Tech Help',
   errands: 'Errands',
+  other: 'Other',
 };
+
+/**
+ * The same read as requests.ts getCategories. Importing that module would load
+ * expo-image-picker with it, which throws on load with the installed version.
+ */
+async function getCategories(): Promise<Category[]> {
+  const { data, error } = await supabase.from('categories').select('*').order('name');
+  if (error) throw error;
+  return data ?? [];
+}
 
 function resolveCategoryId(slug: ServiceCategoryId, categories: Category[]): string {
   const match = categories.find((c) => c.name === CATEGORY_NAME[slug]);
   // Refuse rather than save a service with no category: it would never show
   // under a category filter, and the poster wouldn't know why.
-  if (!match) throw new Error(`Category "${CATEGORY_NAME[slug]}" is missing. Apply migration 017.`);
+  if (!match) {
+    throw new Error(`Category "${CATEGORY_NAME[slug]}" is missing. Apply migrations 017 and 018.`);
+  }
   return match.id;
 }
 
@@ -79,7 +92,7 @@ export async function postServiceDraft(
 ): Promise<ProviderService> {
   const [categories] = await Promise.all([getCategories(), ensureProviderProfile(userId)]);
   return createService({
-    ...draftColumns(draft, resolveCategoryId(draft.category, categories ?? [])),
+    ...draftColumns(draft, resolveCategoryId(draft.category, categories)),
     provider_id: userId,
     // The form has no turnaround; 1 is delivery_days' column default. faq,
     // packages and portfolio_examples belong to the older editor and start empty.
@@ -95,7 +108,7 @@ export async function postServiceDraft(
 /** Saves an edit made through the same form. Leaves images alone unless the draft carries them. */
 export async function updateServiceDraft(id: string, draft: ServiceDraftInput): Promise<void> {
   const categories = await getCategories();
-  await updateService(id, draftColumns(draft, resolveCategoryId(draft.category, categories ?? [])));
+  await updateService(id, draftColumns(draft, resolveCategoryId(draft.category, categories)));
 }
 
 /**
@@ -121,5 +134,8 @@ export function serviceFromRow(row: ProviderService): Service | null {
     active: row.is_active,
     views: 0,
     requests: 0,
+    images: row.images,
+    ...(row.duration_minutes === null ? {} : { durationMinutes: row.duration_minutes }),
+    remoteId: row.id,
   };
 }

@@ -1,6 +1,4 @@
 import { Platform } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { supabase } from './supabase';
 import { ProviderService, ServiceAnalysis, ServiceFAQ, ServiceFilters, ServiceSortOrder } from '../types';
 
@@ -99,7 +97,42 @@ export async function deleteService(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Web: an image-only file input, returning a blob: URL. metro.config.js swaps
+ * expo-image-picker for an empty module on web (it crashes on import there), so
+ * the picker API is simply not present in a web build.
+ */
+function pickImageOnWeb(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    let settled = false;
+    const finish = (uri: string | null) => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      resolve(uri);
+    };
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      finish(file ? URL.createObjectURL(file) : null);
+    });
+    // Fired by current browsers when the dialog is dismissed without a choice.
+    input.addEventListener('cancel', () => finish(null));
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
 export async function pickServiceImage(): Promise<string | null> {
+  if (Platform.OS === 'web') return pickImageOnWeb();
+
+  // Required here, not at the top of the file: the installed expo-image-picker
+  // targets a newer Expo SDK and throws while loading, so a top-level import
+  // would take down every screen that imports this module.
+  const ImagePicker: typeof import('expo-image-picker') = require('expo-image-picker');
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) return null;
 
@@ -135,10 +168,15 @@ export async function uploadServiceImage(uri: string, userId: string): Promise<s
     if (blob.type) contentType = blob.type;
     name = `image.${contentType.split('/')[1] ?? 'jpg'}`;
   } else {
+    // /legacy because the installed expo-file-system (v56) throws from its main
+    // entry's readAsStringAsync; required lazily for the same reason as above.
+    // Typed by hand: `typeof import(...)` would pull the package's TS source
+    // into the typecheck, and that source doesn't compile against this Expo SDK.
+    const FileSystem: {
+      readAsStringAsync: (uri: string, options: { encoding: 'base64' }) => Promise<string>;
+    } = require('expo-file-system/legacy');
     name = uri.split('/').pop() ?? 'image.jpg';
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
     binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   }
 

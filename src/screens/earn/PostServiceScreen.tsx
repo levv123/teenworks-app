@@ -1,413 +1,390 @@
 /**
- * Post a Service — the form behind the white "Post a Service" CTA on Home.
+ * Post a Service — the three-step flow behind the white "Post a Service" CTA on
+ * Home: 1 Category, 2 Details, 3 Preview & post.
  *
- * The whole form lives in one typed object and every error is derived from it,
- * so the footer CTA, the inline messages and the submitted draft can never
- * disagree with each other.
+ * All three steps live on this one route with one form object, so stepping
+ * back and forth (header back, Edit, the step dots, Android back) never drops
+ * anything the user entered. Opened from My Services with a serviceId, the same
+ * flow edits that service, starting at Details.
+ *
+ * Posting: signed in to Supabase, the service is saved through the
+ * serviceDraft adapter with its photos uploaded, and also added to the store so
+ * My Services lists it. Signed out, it is saved to the store only, as the app
+ * has always done, and the preview says so before the user posts.
  */
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { C, R, S } from '../../design/tokens';
-import { CATEGORIES } from '../../data/mock';
-import type { Category, CategoryId, ServiceDraft } from '../../data/types';
+import { C, S } from '../../design/tokens';
+import type { ServiceDraft } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
-import { formatMoney } from '../../utils/format';
-import { AppText, PrimaryButton, Screen, ScreenHeader, TextField } from '../../ui';
+import { pickServiceImage } from '../../api/services';
+import { AppText, PrimaryButton, Screen, ScreenHeader, SecondaryButton } from '../../ui';
+import {
+  CategoryGrid,
+  DETAIL_FIELDS,
+  MAX_PHOTOS,
+  ServiceDetailsForm,
+  ServicePreview,
+  StepIndicator,
+  draftFromForm,
+  emptyForm,
+  formFromService,
+  missingSummary,
+  publishDraft,
+  signedInUserId,
+  validate,
+} from '../../features/postService';
+import type { FieldKey, PostServiceForm, Step } from '../../features/postService';
 
-type PickableCategory = Category & { id: Exclude<CategoryId, 'all'> };
-type RateType = 'fixed' | 'hourly';
-type Day = (typeof DAYS)[number];
-type FieldKey = 'title' | 'category' | 'rate' | 'description' | 'availability';
-type Errors = Partial<Record<FieldKey, string>>;
-
-interface FormState {
-  title: string;
-  category: Exclude<CategoryId, 'all'> | null;
-  rate: string;
-  rateType: RateType;
-  description: string;
-  availability: string[];
-  place: string;
-}
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-
-/** 'all' is a filter value, never something a real service can be filed under. */
-const PICKABLE: PickableCategory[] = CATEGORIES.filter(
-  (category): category is PickableCategory => category.id !== 'all',
-);
-
-const RATE_TYPES: { id: RateType; label: string }[] = [
-  { id: 'hourly', label: 'Hourly' },
-  { id: 'fixed', label: 'Fixed' },
-];
-
-const TITLE_MIN = 4;
-const DESCRIPTION_MIN = 20;
-const DESCRIPTION_MAX = 400;
-const RATE_MAX = 500;
-
-function validate(form: FormState): Errors {
-  const errors: Errors = {};
-
-  if (form.title.trim().length < TITLE_MIN) {
-    errors.title = `Use at least ${TITLE_MIN} characters.`;
-  }
-
-  if (form.category === null) {
-    errors.category = 'Pick a category.';
-  }
-
-  const rate = Number(form.rate);
-  if (form.rate.trim().length === 0) {
-    errors.rate = 'Enter your rate.';
-  } else if (!Number.isFinite(rate) || rate <= 0) {
-    errors.rate = 'Enter a number above 0.';
-  } else if (rate > RATE_MAX) {
-    errors.rate = `Keep it at ${formatMoney(RATE_MAX)} or under.`;
-  }
-
-  if (form.description.trim().length < DESCRIPTION_MIN) {
-    errors.description = `Use at least ${DESCRIPTION_MIN} characters so people know what they get.`;
-  }
-
-  if (form.availability.length === 0) {
-    errors.availability = 'Pick at least one day.';
-  }
-
-  return errors;
-}
+const SUBTITLES: Record<Step, string> = {
+  1: 'Turn your skills into income.',
+  2: 'Tell people what you do.',
+  3: 'Make sure everything looks good.',
+};
 
 export function PostServiceScreen() {
   const nav = useNavigation<Nav>();
   const { params } = useRoute<Route<'PostService'>>();
-  const { location, postService, services, showToast, updateService } = useApp();
+  const { location, postService, services, showToast, updateService, user } = useApp();
 
-  // Opened from My Services with an id, the same form edits that service. An id
-  // that no longer resolves falls through to a blank Post form rather than
-  // stranding the user on an empty screen.
+  // An id that no longer resolves falls through to a blank Post flow rather
+  // than stranding the user on an empty screen.
   const editing = services.find((service) => service.id === params?.serviceId) ?? null;
 
-  const [form, setForm] = useState<FormState>(() =>
-    editing
-      ? {
-          title: editing.title,
-          category: editing.category,
-          rate: String(editing.rate),
-          rateType: editing.rateType,
-          description: editing.description,
-          availability: [...editing.availability],
-          place: editing.place,
-        }
-      : {
-          title: '',
-          category: null,
-          rate: '',
-          rateType: 'hourly',
-          description: '',
-          availability: [],
-          place: location.label,
-        },
+  const [step, setStep] = useState<Step>(editing ? 2 : 1);
+  const [form, setForm] = useState<PostServiceForm>(() =>
+    editing ? formFromService(editing) : emptyForm(location.label),
   );
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
-  const [submitted, setSubmitted] = useState(false);
+  // Per step: has the user pressed its primary button yet? Until then only
+  // fields they have touched show errors.
+  const [attempted, setAttempted] = useState({ category: false, details: false });
+  const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
+  /** null while the session check is still out. */
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    void signedInUserId().then((id) => {
+      if (mounted.current) setSignedIn(id !== null);
+    });
+  }, []);
 
   const errors = useMemo(() => validate(form), [form]);
-  const valid = Object.keys(errors).length === 0;
+  const detailsValid = DETAIL_FIELDS.every((key) => errors[key] === undefined);
 
-  const errorFor = (key: FieldKey): string | undefined =>
-    submitted || touched[key] === true ? errors[key] : undefined;
-
-  const touch = (key: FieldKey) => {
-    setTouched((prev) => (prev[key] === true ? prev : { ...prev, [key]: true }));
+  const errorFor = (key: FieldKey): string | undefined => {
+    const shown = key === 'category' ? attempted.category : attempted.details || touched[key] === true;
+    return shown ? errors[key] : undefined;
   };
 
-  const setText = (key: 'title' | 'rate' | 'description' | 'place', next: string) => {
-    setForm((prev) => ({ ...prev, [key]: next }));
-    if (key !== 'place') touch(key);
-  };
-
-  const selectCategory = (id: Exclude<CategoryId, 'all'>) => {
-    setForm((prev) => ({ ...prev, category: id }));
-    touch('category');
-  };
-
-  const toggleDay = (day: Day) => {
-    setForm((prev) => ({
-      ...prev,
-      // Rebuilt from DAYS so the stored days always read Mon -> Sun.
-      availability: prev.availability.includes(day)
-        ? prev.availability.filter((d) => d !== day)
-        : DAYS.filter((d) => d === day || prev.availability.includes(d)),
-    }));
-    touch('availability');
-  };
-
-  const submit = () => {
-    setSubmitted(true);
-    if (!valid || form.category === null) return;
-
-    const draft: ServiceDraft = {
-      title: form.title.trim(),
-      category: form.category,
-      rate: Number(form.rate),
-      rateType: form.rateType,
-      description: form.description.trim(),
-      availability: form.availability,
-      place: form.place.trim().length > 0 ? form.place.trim() : location.label,
-    };
-
-    if (editing) {
-      updateService(editing.id, draft);
-      showToast('Service updated');
-    } else {
-      // postService raises its own toast.
-      postService(draft);
+  const change = useCallback((patch: Partial<PostServiceForm>, field?: FieldKey) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+    if (field !== undefined) {
+      setTouched((prev) => (prev[field] === true ? prev : { ...prev, [field]: true }));
     }
-    nav.goBack();
+  }, []);
+
+  // ── Leaving vs stepping back ────────────────────────────────────────────────
+
+  /** Set just before a navigation that should really leave the flow. */
+  const leaving = useRef(false);
+  const stepRef = useRef(step);
+  stepRef.current = step;
+
+  const stepBack = useCallback(() => {
+    setPostError(null);
+    setStep((current) => (current > 1 ? ((current - 1) as Step) : current));
+  }, []);
+
+  // Android's back button and any other goBack() take the user one step back
+  // rather than out of the flow; only step 1 leaves.
+  useEffect(
+    () =>
+      nav.addListener('beforeRemove', (event) => {
+        if (leaving.current || stepRef.current === 1) return;
+        const type = event.data.action.type;
+        if (type !== 'GO_BACK' && type !== 'POP') return;
+        event.preventDefault();
+        stepBack();
+      }),
+    [nav, stepBack],
+  );
+
+  // An iOS swipe can't be intercepted like that, so it's only allowed on step 1.
+  useEffect(() => {
+    nav.setOptions({ gestureEnabled: step === 1 });
+  }, [nav, step]);
+
+  const onBack = () => {
+    if (step > 1) stepBack();
+    else nav.goBack();
   };
+
+  // ── Step actions ────────────────────────────────────────────────────────────
+
+  const continueFromCategory = () => {
+    setAttempted((prev) => ({ ...prev, category: true }));
+    if (errors.category === undefined) setStep(2);
+  };
+
+  const continueToPreview = () => {
+    setAttempted((prev) => ({ ...prev, details: true }));
+    if (errors.category !== undefined) {
+      setStep(1);
+      return;
+    }
+    if (detailsValid) setStep(3);
+  };
+
+  const addPhoto = async () => {
+    if (form.photos.length >= MAX_PHOTOS) return;
+    try {
+      const uri = await pickServiceImage();
+      if (uri === null || !mounted.current) return;
+      setForm((prev) =>
+        prev.photos.length >= MAX_PHOTOS ? prev : { ...prev, photos: [...prev.photos, uri] },
+      );
+    } catch (err) {
+      console.warn('[TeenWorks] Photo picker failed:', err);
+      showToast("Couldn't open your photos");
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setForm((prev) => ({ ...prev, photos: prev.photos.filter((_, i) => i !== index) }));
+  };
+
+  /** My Services is where a new service shows up; go back to it if it's already open. */
+  const goToMyServices = () => {
+    leaving.current = true;
+    if (nav.getState().routes.some((route) => route.name === 'MyServices')) {
+      nav.navigate('MyServices');
+    } else {
+      nav.replace('MyServices');
+    }
+  };
+
+  const post = async () => {
+    if (posting) return;
+    if (Object.keys(errors).length > 0) {
+      // Unreachable through the UI, which only shows step 3 for a valid form.
+      setStep(errors.category !== undefined ? 1 : 2);
+      return;
+    }
+
+    setPosting(true);
+    setPostError(null);
+    try {
+      let saved: ServiceDraft = draftFromForm(form);
+      const userId = await signedInUserId();
+      // A service that only ever lived on this device stays there when edited.
+      const syncs = editing === null || editing.remoteId !== undefined;
+      if (userId !== null && syncs) {
+        saved = await publishDraft(saved, userId, editing?.remoteId);
+      }
+      if (!mounted.current) return;
+
+      if (editing) {
+        updateService(editing.id, saved);
+        showToast('Service updated');
+        leaving.current = true;
+        nav.goBack();
+      } else {
+        // postService raises its own "Service posted" toast.
+        postService(saved);
+        goToMyServices();
+      }
+    } catch (err) {
+      console.error('[TeenWorks] Post a Service failed:', err);
+      if (!mounted.current) return;
+      setPosting(false);
+      setPostError(
+        editing
+          ? "Couldn't save your changes. Check your connection and try again."
+          : "Couldn't post your service. Check your connection and try again.",
+      );
+    }
+  };
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const title =
+    step === 1 ? (editing ? 'Edit Service' : 'Post a Service') : step === 2 ? 'Service Details' : 'Preview Your Service';
+
+  const header = (
+    <View>
+      <ScreenHeader title={title} subtitle={SUBTITLES[step]} onBack={onBack} />
+      <StepIndicator
+        current={step}
+        onStepPress={(target) => {
+          setPostError(null);
+          setStep(target);
+        }}
+        style={styles.steps}
+      />
+    </View>
+  );
 
   const categoryError = errorFor('category');
-  const availabilityError = errorFor('availability');
+  const missing = attempted.details && !detailsValid ? missingSummary(errors) : '';
 
-  return (
-    <Screen
-      header={
-        <ScreenHeader
-          title={editing ? 'Edit Service' : 'Post a Service'}
-          onBack={() => nav.goBack()}
-        />
-      }
-      footer={
-        <PrimaryButton
-          label={editing ? 'Save Changes' : 'Post Service'}
-          onPress={submit}
-          disabled={!valid}
-        />
-      }
-    >
-      <TextField
-        label="Title"
-        value={form.title}
-        onChangeText={(next) => setText('title', next)}
-        placeholder="Lawn Mowing & Edging"
-        error={errorFor('title')}
-      />
+  let body: React.ReactNode;
+  let footer: React.ReactNode;
 
-      <View style={styles.block}>
-        <AppText variant="small" color={C.textMuted} style={styles.blockLabel}>
-          Category
+  if (step === 1) {
+    body = (
+      <>
+        <CategoryGrid
+          selected={form.category}
+          onSelect={(category) => change({ category }, 'category')}
+        />
+        <AppText variant="small" color={C.textMuted} style={styles.hint}>
+          Pick the one that fits best, or More if none do.
         </AppText>
-        <View style={styles.chipGrid}>
-          {PICKABLE.map((category) => {
-            const selected = form.category === category.id;
-            return (
-              <Pressable
-                key={category.id}
-                onPress={() => selectCategory(category.id)}
-                accessibilityRole="radio"
-                accessibilityLabel={category.label}
-                accessibilityState={{ selected }}
-                style={({ pressed }) => [
-                  styles.chip,
-                  selected ? styles.chipSelected : styles.chipIdle,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons
-                  name={category.icon}
-                  size={15}
-                  color={selected ? C.onLight : category.color}
-                  style={styles.chipIcon}
-                />
-                <AppText variant="small" color={selected ? C.onLight : C.text}>
-                  {category.label}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
+      </>
+    );
+    footer = (
+      <>
         {categoryError ? (
-          <AppText variant="tiny" color={C.danger} style={styles.blockError}>
+          <AppText variant="small" color={C.danger} style={styles.footerNote}>
             {categoryError}
           </AppText>
         ) : null}
-      </View>
-
-      <TextField
-        label="Rate"
-        value={form.rate}
-        onChangeText={(next) => setText('rate', next)}
-        placeholder="25"
-        prefix="$"
-        keyboardType="numeric"
-        error={errorFor('rate')}
-        style={styles.block}
+        <PrimaryButton label="Continue →" onPress={continueFromCategory} />
+      </>
+    );
+  } else if (step === 2) {
+    body = (
+      <ServiceDetailsForm
+        form={form}
+        errorFor={errorFor}
+        onChange={change}
+        onAddPhoto={() => void addPhoto()}
+        onRemovePhoto={removePhoto}
+        placePlaceholder={location.label}
       />
-
-      <View style={styles.segmented} accessibilityRole="radiogroup">
-        {RATE_TYPES.map((option) => {
-          const selected = form.rateType === option.id;
-          return (
-            <Pressable
-              key={option.id}
-              onPress={() => setForm((prev) => ({ ...prev, rateType: option.id }))}
-              accessibilityRole="radio"
-              accessibilityLabel={`${option.label} rate`}
-              accessibilityState={{ selected }}
-              style={({ pressed }) => [
-                styles.segment,
-                selected && styles.segmentSelected,
-                pressed && styles.pressed,
-              ]}
-            >
-              <AppText
-                variant="small"
-                color={selected ? C.onLight : C.textMuted}
-              >
-                {option.label}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <TextField
-        label="Description"
-        value={form.description}
-        onChangeText={(next) => setText('description', next)}
-        placeholder="What you do, what you bring, how long it takes."
-        multiline
-        numberOfLines={4}
-        maxLength={DESCRIPTION_MAX}
-        error={errorFor('description')}
-        style={styles.block}
-      />
-      <AppText variant="tiny" color={C.textSubtle} style={styles.counter}>
-        {`${form.description.length}/${DESCRIPTION_MAX}`}
-      </AppText>
-
-      <View style={styles.block}>
-        <AppText variant="small" color={C.textMuted} style={styles.blockLabel}>
-          Availability
-        </AppText>
-        <View style={styles.dayRow}>
-          {DAYS.map((day) => {
-            const selected = form.availability.includes(day);
-            return (
-              <Pressable
-                key={day}
-                onPress={() => toggleDay(day)}
-                accessibilityRole="checkbox"
-                accessibilityLabel={day}
-                accessibilityState={{ checked: selected }}
-                style={({ pressed }) => [
-                  styles.day,
-                  selected ? styles.chipSelected : styles.chipIdle,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <AppText variant="tiny" color={selected ? C.onLight : C.text}>
-                  {day}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-        {availabilityError ? (
-          <AppText variant="tiny" color={C.danger} style={styles.blockError}>
-            {availabilityError}
+    );
+    footer = (
+      <>
+        {missing ? (
+          <AppText variant="small" color={C.danger} style={styles.footerNote}>
+            {`Still needed: ${missing}.`}
           </AppText>
         ) : null}
-      </View>
+        <PrimaryButton label="Preview →" onPress={continueToPreview} />
+      </>
+    );
+  } else {
+    // Step 3 is only reachable with a valid form, so these are all set.
+    const draft = draftFromForm(form);
+    body = (
+      <>
+        <View style={styles.caption}>
+          <Ionicons name="eye-outline" size={14} color={C.textMuted} />
+          <AppText variant="small" color={C.textMuted} style={styles.captionText}>
+            This is how customers will see your listing.
+          </AppText>
+        </View>
+        <ServicePreview
+          category={draft.category}
+          photos={form.photos}
+          title={draft.title}
+          description={draft.description}
+          rate={draft.rate}
+          rateType={draft.rateType}
+          duration={form.duration ?? 'under1'}
+          place={draft.place}
+          availability={draft.availability}
+          provider={{ name: user.name, handle: user.handle }}
+        />
+      </>
+    );
+    footer = (
+      <>
+        {signedIn === false && !postError ? (
+          <AppText variant="small" color={C.textMuted} style={styles.footerNote}>
+            {editing
+              ? "You're not signed in, so changes are saved on this device only."
+              : "You're not signed in, so this is saved to My Services on this device only."}
+          </AppText>
+        ) : null}
+        {postError ? (
+          <AppText variant="small" color={C.danger} style={styles.footerNote}>
+            {postError}
+          </AppText>
+        ) : null}
+        <View style={styles.actions}>
+          <SecondaryButton
+            label="Edit"
+            icon="create-outline"
+            onPress={stepBack}
+            disabled={posting}
+            style={styles.edit}
+          />
+          <View style={styles.postWrap}>
+            <PrimaryButton
+              label={editing ? 'Save Changes' : 'Post Service'}
+              onPress={() => void post()}
+              loading={posting}
+            />
+          </View>
+        </View>
+      </>
+    );
+  }
 
-      <TextField
-        label="Location"
-        value={form.place}
-        onChangeText={(next) => setText('place', next)}
-        placeholder={location.label}
-        style={styles.block}
-      />
+  return (
+    // Keyed by step so each step opens scrolled to the top.
+    <Screen key={step} header={header} footer={footer}>
+      {body}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  block: {
-    marginTop: S.lg,
+  steps: {
+    marginBottom: S.lg,
   },
-  blockLabel: {
-    marginBottom: S.sm - 2,
+  hint: {
+    marginTop: S.base,
   },
-  blockError: {
-    marginTop: S.xs + 2,
+  footerNote: {
+    marginBottom: S.md,
+    textAlign: 'center',
   },
-  chipGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  chip: {
+  caption: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: R.full,
-    paddingVertical: S.sm + 2,
-    paddingHorizontal: 14,
-    marginRight: S.sm,
-    marginBottom: S.sm,
+    marginBottom: S.md,
   },
-  chipIdle: {
-    backgroundColor: C.surfaceAlt,
-    borderWidth: 1,
-    borderColor: C.border,
+  captionText: {
+    marginLeft: S.sm - 2,
   },
-  chipSelected: {
-    backgroundColor: C.text,
-    borderWidth: 1,
-    borderColor: C.text,
-  },
-  chipIcon: {
-    marginRight: S.xs + 2,
-  },
-  segmented: {
+  actions: {
     flexDirection: 'row',
-    alignSelf: 'flex-start',
-    backgroundColor: C.surfaceAlt,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: R.full,
-    padding: 3,
-    marginTop: S.md,
-  },
-  segment: {
-    paddingVertical: S.sm,
-    paddingHorizontal: S.lg,
-    borderRadius: R.full,
-  },
-  segmentSelected: {
-    backgroundColor: C.text,
-  },
-  counter: {
-    marginTop: S.xs + 2,
-    textAlign: 'right',
-  },
-  dayRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  day: {
     alignItems: 'center',
+  },
+  edit: {
+    // Matches the white button's height so the pair reads as one bar.
+    alignSelf: 'stretch',
     justifyContent: 'center',
-    minWidth: 46,
-    borderRadius: R.md,
-    paddingVertical: S.sm + 2,
-    paddingHorizontal: S.sm,
-    marginRight: S.sm - 2,
-    marginBottom: S.sm - 2,
+    paddingHorizontal: S.lg,
   },
-  pressed: {
-    opacity: 0.6,
+  postWrap: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: S.md,
   },
 });
