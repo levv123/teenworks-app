@@ -139,7 +139,7 @@ function readPhotoOnWeb(file: File): Promise<string | null> {
  * an empty module on web (it crashes on import there), so the picker API is
  * simply not present in a web build.
  */
-function pickImagesOnWeb(limit: number): Promise<string[]> {
+function pickImagesOnWeb(limit: number): Promise<PickedPhotos> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -147,20 +147,22 @@ function pickImagesOnWeb(limit: number): Promise<string[]> {
     input.multiple = limit > 1;
     input.style.display = 'none';
     let settled = false;
-    const finish = (uris: string[]) => {
+    const finish = (picked: PickedPhotos) => {
       if (settled) return;
       settled = true;
       input.remove();
-      resolve(uris);
+      resolve(picked);
     };
     input.addEventListener('change', () => {
-      const files = Array.from(input.files ?? []).slice(0, limit);
-      void Promise.all(files.map(readPhotoOnWeb)).then((uris) =>
-        finish(uris.filter((uri): uri is string => uri !== null)),
-      );
+      const all = Array.from(input.files ?? []);
+      const files = all.slice(0, limit);
+      void Promise.all(files.map(readPhotoOnWeb)).then((read) => {
+        const uris = read.filter((uri): uri is string => uri !== null);
+        finish({ uris, skipped: files.length - uris.length, overLimit: all.length - files.length });
+      });
     });
     // Fired by current browsers when the dialog is dismissed without a choice.
-    input.addEventListener('cancel', () => finish([]));
+    input.addEventListener('cancel', () => finish(NOTHING_PICKED));
     document.body.appendChild(input);
     input.click();
   });
@@ -174,13 +176,23 @@ export class PhotoPermissionError extends Error {
   }
 }
 
+export interface PickedPhotos {
+  /** In the order picked: data: URIs on web, file: URIs on iOS and Android. */
+  uris: string[];
+  /** Files chosen that couldn't be read as an image (web only). */
+  skipped: number;
+  /** Photos chosen beyond `limit`, left out. */
+  overLimit: number;
+}
+
+const NOTHING_PICKED: PickedPhotos = { uris: [], skipped: 0, overLimit: 0 };
+
 /**
- * Lets the user pick up to `limit` photos and returns their URIs, in the order
- * picked: data: URIs on web, file: URIs on iOS and Android. An empty array
- * means they cancelled. Throws PhotoPermissionError if access was refused.
+ * Lets the user pick up to `limit` photos. No URIs and nothing skipped means
+ * they cancelled. Throws PhotoPermissionError if access was refused.
  */
-export async function pickServiceImages(limit: number): Promise<string[]> {
-  if (limit < 1) return [];
+export async function pickServiceImages(limit: number): Promise<PickedPhotos> {
+  if (limit < 1) return NOTHING_PICKED;
   if (Platform.OS === 'web') return pickImagesOnWeb(limit);
 
   // Required here, not at the top of the file, so web builds (where the
@@ -197,13 +209,18 @@ export async function pickServiceImages(limit: number): Promise<string[]> {
     orderedSelection: true,
     quality: 0.8,
   });
-  if (result.canceled) return [];
-  return result.assets.slice(0, limit).map((asset) => asset.uri);
+  if (result.canceled) return NOTHING_PICKED;
+  // Older Android photo pickers can ignore selectionLimit.
+  return {
+    uris: result.assets.slice(0, limit).map((asset) => asset.uri),
+    skipped: 0,
+    overLimit: Math.max(0, result.assets.length - limit),
+  };
 }
 
 /** One cropped photo, for the older screens that add them one at a time. */
 export async function pickServiceImage(): Promise<string | null> {
-  if (Platform.OS === 'web') return (await pickImagesOnWeb(1))[0] ?? null;
+  if (Platform.OS === 'web') return (await pickImagesOnWeb(1)).uris[0] ?? null;
 
   const ImagePicker: typeof import('expo-image-picker') = require('expo-image-picker');
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -241,16 +258,19 @@ export async function uploadServiceImage(uri: string, userId: string): Promise<s
     if (blob.type) contentType = blob.type;
     name = `image.${contentType.split('/')[1] ?? 'jpg'}`;
   } else {
-    // /legacy because the installed expo-file-system (v56) throws from its main
-    // entry's readAsStringAsync; required lazily for the same reason as above.
-    // Typed by hand: `typeof import(...)` would pull the package's TS source
-    // into the typecheck, and that source doesn't compile against this Expo SDK.
-    const FileSystem: {
-      readAsStringAsync: (uri: string, options: { encoding: 'base64' }) => Promise<string>;
-    } = require('expo-file-system/legacy');
-    name = uri.split('/').pop() ?? 'image.jpg';
-    const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-    binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    // React Native's fetch reads file: URIs, so this needs no expo-file-system
+    // (the installed v56 is newer than this Expo SDK and isn't built into an
+    // iOS app at all).
+    const response = await fetch(uri);
+    if (!response.ok && response.status !== 0) {
+      throw new Error(`Could not read photo (${response.status}).`);
+    }
+    binary = new Uint8Array(await response.arrayBuffer());
+    name = uri.split('?')[0].split('/').pop() || 'image.jpg';
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (ext === 'png') contentType = 'image/png';
+    else if (ext === 'heic' || ext === 'heif') contentType = `image/${ext}`;
+    else if (ext === 'webp') contentType = 'image/webp';
   }
 
   const storagePath = `service-images/${userId}/${Date.now()}_${name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;

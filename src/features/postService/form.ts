@@ -5,11 +5,13 @@
  * Every error is derived from the form, so the inline messages, the "still
  * needed" summary and the saved draft can never disagree with each other.
  */
+import { CATEGORY_BY_ID } from '../../data/mock';
 import type { Service, ServiceDraft } from '../../data/types';
 import { formatMoney } from '../../utils/format';
 import {
   DAYS,
   DESCRIPTION_MIN,
+  MAX_PHOTOS,
   RATE_MAX,
   TITLE_MIN,
   durationFromMinutes,
@@ -80,17 +82,29 @@ export function emptyForm(place: string): PostServiceForm {
   };
 }
 
-/** Seeds the form from a saved service, for editing from My Services. */
+const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+/**
+ * Seeds the form from a saved service, for editing from My Services. The
+ * service may come from localStorage, so anything malformed is left blank for
+ * the user to fill in again rather than trusted.
+ */
 export function formFromService(service: Service): PostServiceForm {
+  const category = service.category as string;
   return {
-    category: service.category,
-    photos: service.images ? [...service.images] : [],
-    title: service.title,
-    description: service.description,
+    category:
+      category !== 'all' && Object.prototype.hasOwnProperty.call(CATEGORY_BY_ID, category)
+        ? service.category
+        : null,
+    photos: Array.isArray(service.images)
+      ? service.images.filter((uri) => typeof uri === 'string' && uri.length > 0).slice(0, MAX_PHOTOS)
+      : [],
+    title: text(service.title),
+    description: text(service.description),
     rate: String(Math.round(service.rate)),
-    rateType: service.rateType,
+    rateType: service.rateType === 'hourly' || service.rateType === 'fixed' ? service.rateType : null,
     duration: durationFromMinutes(service.durationMinutes),
-    place: service.place,
+    place: text(service.place),
     // Kept to known labels and put back in Mon -> Sun order.
     availability: DAYS.filter((day) => service.availability.includes(day)),
   };

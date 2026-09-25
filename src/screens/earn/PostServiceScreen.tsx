@@ -38,6 +38,19 @@ import {
   validate,
 } from '../../features/postService';
 import type { FieldKey, PostServiceForm, Step } from '../../features/postService';
+import {
+  discardPhotoCopies,
+  hasRoomForPhotos,
+  keepPhotosOnDevice,
+} from '../../features/postService/localPhotos';
+
+const STORAGE_FULL =
+  'Photo storage on this device is full. Remove a photo or use smaller images, then try again.';
+
+/** Every photo a saved service uses. */
+function photosInUse(services: Service[]): string[] {
+  return services.flatMap((service) => service.images ?? []);
+}
 
 const TITLES: Record<Step, string> = {
   1: 'Post a Service',
@@ -80,6 +93,23 @@ export function PostServiceScreen() {
       mounted.current = false;
     };
   }, []);
+
+  // Photos picked on a phone are copied into the app's folder. Leaving without
+  // saving deletes the copies no saved service uses; a post still in flight
+  // may be reading them, and cleans up after itself.
+  const formRef = useRef(form);
+  formRef.current = form;
+  const servicesRef = useRef(services);
+  servicesRef.current = services;
+  const saved = useRef(false);
+  useEffect(
+    () => () => {
+      if (!saved.current && !postingRef.current) {
+        void discardPhotoCopies(formRef.current.photos, photosInUse(servicesRef.current));
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     void signedInUserId().then((id) => {
@@ -183,11 +213,33 @@ export function PostServiceScreen() {
     else if (detailsValid) goToStep(3);
   };
 
+  /** One picker at a time: a second tap while it's open does nothing. */
+  const picking = useRef(false);
+
   const addPhoto = async () => {
-    if (form.photos.length >= MAX_PHOTOS) return;
+    if (picking.current || form.photos.length >= MAX_PHOTOS) return;
+    picking.current = true;
     try {
-      const uris = await pickServiceImages(MAX_PHOTOS - form.photos.length);
-      if (uris.length === 0 || !mounted.current) return;
+      const picked = await pickServiceImages(MAX_PHOTOS - form.photos.length);
+      if (picked.skipped > 0) {
+        showToast(
+          picked.skipped === 1
+            ? "A file couldn't be opened as a photo. Try a JPG or PNG."
+            : `${picked.skipped} files couldn't be opened as photos. Try JPG or PNG.`,
+        );
+      } else if (picked.overLimit > 0) {
+        showToast(
+          `You can add up to ${MAX_PHOTOS} photos, so ${picked.overLimit} ${
+            picked.overLimit === 1 ? 'was' : 'were'
+          } left out`,
+        );
+      }
+      if (picked.uris.length === 0) return;
+      const uris = await keepPhotosOnDevice(picked.uris);
+      if (!mounted.current) {
+        void discardPhotoCopies(uris, photosInUse(servicesRef.current));
+        return;
+      }
       dirty.current = true;
       setForm((prev) => ({
         ...prev,
@@ -200,12 +252,20 @@ export function PostServiceScreen() {
       }
       console.warn('[TeenWorks] Photo picker failed:', err);
       showToast("Couldn't open your photos");
+    } finally {
+      picking.current = false;
     }
   };
 
   const removePhoto = (index: number) => {
+    if (postingRef.current) return;
     dirty.current = true;
+    const removed = form.photos[index];
+    const remaining = form.photos.filter((_, i) => i !== index);
     setForm((prev) => ({ ...prev, photos: prev.photos.filter((_, i) => i !== index) }));
+    if (removed !== undefined) {
+      void discardPhotoCopies([removed], [...remaining, ...photosInUse(services)]);
+    }
   };
 
   /** My Services is where a new service shows up; go back to it if it's already open. */
@@ -252,27 +312,46 @@ export function PostServiceScreen() {
         return;
       }
 
-      let saved: ServiceDraft = draftFromForm(form);
+      const picked = form.photos;
+      const otherServices = services.filter((service) => service.id !== editing?.id);
+      let draft: ServiceDraft = draftFromForm(form);
       if (userId !== null && syncs) {
-        saved = await publishDraft(saved, userId, editing?.remoteId, (images) => {
+        draft = await publishDraft(draft, userId, editing?.remoteId, (images) => {
           // A retry after a failed save reuses these instead of uploading again.
           if (mounted.current) setForm((prev) => ({ ...prev, photos: images }));
+          // The uploaded photos' device copies aren't needed any more.
+          void discardPhotoCopies(picked, [...images, ...photosInUse(services)]);
         });
+      } else {
+        // Nowhere to upload to, so the photos stay as picked: data: URIs on
+        // web and file: URIs on a phone, both kept by the local store. On web
+        // the new ones have to fit in localStorage first.
+        const stored = new Set(photosInUse(services));
+        const extra = (draft.images ?? [])
+          .filter((uri) => !stored.has(uri))
+          .reduce((chars, uri) => chars + uri.length, 0);
+        if (!hasRoomForPhotos(extra)) {
+          fail(STORAGE_FULL);
+          return;
+        }
       }
-      // Otherwise there is nowhere to upload to, so the photos stay as picked:
-      // data: URIs on web and file: URIs on a phone, both kept by the local
-      // store.
 
       // The store outlives this screen, so the saved service lands in My
       // Services even if the screen went away while the request was out.
       leaving.current = true;
+      saved.current = true;
+      // Copies the saved service no longer uses, e.g. photos removed in an edit.
+      void discardPhotoCopies(
+        [...picked, ...(editing?.images ?? [])],
+        [...(draft.images ?? []), ...photosInUse(otherServices)],
+      );
       if (editing) {
-        updateService(editing.id, saved);
+        updateService(editing.id, draft);
         showToast('Service updated');
         if (mounted.current) nav.goBack();
       } else {
         // postService raises its own "Service posted" toast.
-        postService(saved);
+        postService(draft);
         if (mounted.current) goToMyServices();
       }
     } catch (err) {
