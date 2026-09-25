@@ -4,7 +4,7 @@
  * Empty, it is one wide "Add photos" panel, so a photo is the first thing the
  * form asks for. With photos it becomes a row of thumbnails, cover first, each
  * with a remove button, and a smaller add tile at the end until MAX_PHOTOS.
- * Picking is the caller's job (it goes through the existing pickServiceImage).
+ * Picking is the caller's job (it goes through pickServiceImages).
  */
 import React, { useEffect, useState } from 'react';
 import {

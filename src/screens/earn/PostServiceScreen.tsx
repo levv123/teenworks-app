@@ -20,7 +20,7 @@ import { C, S } from '../../design/tokens';
 import type { Service, ServiceDraft } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
-import { pickServiceImage } from '../../api/services';
+import { PhotoPermissionError, pickServiceImages } from '../../api/services';
 import { AppText, PrimaryButton, Screen, ScreenHeader, SecondaryButton } from '../../ui';
 import {
   CategoryGrid,
@@ -32,7 +32,6 @@ import {
   draftFromForm,
   emptyForm,
   formFromService,
-  isStoredPhoto,
   missingSummary,
   publishDraft,
   signedInUserId,
@@ -187,13 +186,18 @@ export function PostServiceScreen() {
   const addPhoto = async () => {
     if (form.photos.length >= MAX_PHOTOS) return;
     try {
-      const uri = await pickServiceImage();
-      if (uri === null || !mounted.current) return;
+      const uris = await pickServiceImages(MAX_PHOTOS - form.photos.length);
+      if (uris.length === 0 || !mounted.current) return;
       dirty.current = true;
-      setForm((prev) =>
-        prev.photos.length >= MAX_PHOTOS ? prev : { ...prev, photos: [...prev.photos, uri] },
-      );
+      setForm((prev) => ({
+        ...prev,
+        photos: [...prev.photos, ...uris].slice(0, MAX_PHOTOS),
+      }));
     } catch (err) {
+      if (err instanceof PhotoPermissionError) {
+        showToast('Allow photo access in Settings to add photos');
+        return;
+      }
       console.warn('[TeenWorks] Photo picker failed:', err);
       showToast("Couldn't open your photos");
     }
@@ -216,7 +220,6 @@ export function PostServiceScreen() {
 
   // A service that only ever lived on this device stays there when edited.
   const syncs = editing === null || editing.remoteId !== undefined;
-  const localPhotos = form.photos.filter((uri) => !isStoredPhoto(uri)).length;
 
   const post = async () => {
     if (postingRef.current) return;
@@ -255,11 +258,10 @@ export function PostServiceScreen() {
           // A retry after a failed save reuses these instead of uploading again.
           if (mounted.current) setForm((prev) => ({ ...prev, photos: images }));
         });
-      } else {
-        // Nowhere to upload to: device-only photo URIs are left out rather than
-        // stored as links that stop working (on web, at the next reload).
-        saved = { ...saved, images: (saved.images ?? []).filter(isStoredPhoto) };
       }
+      // Otherwise there is nowhere to upload to, so the photos stay as picked:
+      // data: URIs on web and file: URIs on a phone, both kept by the local
+      // store.
 
       // The store outlives this screen, so the saved service lands in My
       // Services even if the screen went away while the request was out.
@@ -305,11 +307,9 @@ export function PostServiceScreen() {
     const where = editing
       ? "You're not signed in, so changes are saved on this device only"
       : "You're not signed in, so this is saved to My Services on this device only";
-    saveNote = localPhotos > 0 ? `${where}, without the new photos.` : `${where}.`;
+    saveNote = `${where}.`;
   } else if (signedIn === true && !syncs) {
-    saveNote = localPhotos > 0
-      ? 'This service is saved on this device only, so changes stay here too, without the new photos.'
-      : 'This service is saved on this device only, so changes stay here too.';
+    saveNote = 'This service is saved on this device only, so changes stay here too.';
   }
 
   let body: React.ReactNode;

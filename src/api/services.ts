@@ -97,41 +97,114 @@ export async function deleteService(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Longest side, in pixels, of a photo picked on web; see readPhotoOnWeb. */
+const WEB_PHOTO_MAX_SIDE = 1024;
+const WEB_PHOTO_QUALITY = 0.72;
+
 /**
- * Web: an image-only file input, returning a blob: URL. metro.config.js swaps
- * expo-image-picker for an empty module on web (it crashes on import there), so
- * the picker API is simply not present in a web build.
+ * Reads a picked file as a JPEG data: URI, scaled down to WEB_PHOTO_MAX_SIDE.
+ * A data: URI, unlike a blob: URL, still works after a reload, so a photo in
+ * a service saved to the app's local store keeps showing. Scaling keeps five
+ * of them to well under a megabyte in that store. Resolves null for a file
+ * the browser can't decode as an image.
  */
-function pickImageOnWeb(): Promise<string | null> {
+function readPhotoOnWeb(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      const scale = Math.min(1, WEB_PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const ctx = canvas.getContext('2d');
+      URL.revokeObjectURL(url);
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', WEB_PHOTO_QUALITY));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Web: an image-only file input. metro.config.js swaps expo-image-picker for
+ * an empty module on web (it crashes on import there), so the picker API is
+ * simply not present in a web build.
+ */
+function pickImagesOnWeb(limit: number): Promise<string[]> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.multiple = limit > 1;
     input.style.display = 'none';
     let settled = false;
-    const finish = (uri: string | null) => {
+    const finish = (uris: string[]) => {
       if (settled) return;
       settled = true;
       input.remove();
-      resolve(uri);
+      resolve(uris);
     };
     input.addEventListener('change', () => {
-      const file = input.files?.[0];
-      finish(file ? URL.createObjectURL(file) : null);
+      const files = Array.from(input.files ?? []).slice(0, limit);
+      void Promise.all(files.map(readPhotoOnWeb)).then((uris) =>
+        finish(uris.filter((uri): uri is string => uri !== null)),
+      );
     });
     // Fired by current browsers when the dialog is dismissed without a choice.
-    input.addEventListener('cancel', () => finish(null));
+    input.addEventListener('cancel', () => finish([]));
     document.body.appendChild(input);
     input.click();
   });
 }
 
-export async function pickServiceImage(): Promise<string | null> {
-  if (Platform.OS === 'web') return pickImageOnWeb();
+/** Thrown by pickServiceImages when the user has refused access to their photos. */
+export class PhotoPermissionError extends Error {
+  constructor() {
+    super('Photo library permission was not granted.');
+    this.name = 'PhotoPermissionError';
+  }
+}
 
-  // Required here, not at the top of the file: the installed expo-image-picker
-  // targets a newer Expo SDK and throws while loading, so a top-level import
-  // would take down every screen that imports this module.
+/**
+ * Lets the user pick up to `limit` photos and returns their URIs, in the order
+ * picked: data: URIs on web, file: URIs on iOS and Android. An empty array
+ * means they cancelled. Throws PhotoPermissionError if access was refused.
+ */
+export async function pickServiceImages(limit: number): Promise<string[]> {
+  if (limit < 1) return [];
+  if (Platform.OS === 'web') return pickImagesOnWeb(limit);
+
+  // Required here, not at the top of the file, so web builds (where the
+  // module is an empty stub) never touch it.
+  const ImagePicker: typeof import('expo-image-picker') = require('expo-image-picker');
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) throw new PhotoPermissionError();
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    // Cropping only works one photo at a time, so it's off to allow several.
+    allowsMultipleSelection: limit > 1,
+    selectionLimit: limit,
+    orderedSelection: true,
+    quality: 0.8,
+  });
+  if (result.canceled) return [];
+  return result.assets.slice(0, limit).map((asset) => asset.uri);
+}
+
+/** One cropped photo, for the older screens that add them one at a time. */
+export async function pickServiceImage(): Promise<string | null> {
+  if (Platform.OS === 'web') return (await pickImagesOnWeb(1))[0] ?? null;
+
   const ImagePicker: typeof import('expo-image-picker') = require('expo-image-picker');
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) return null;
