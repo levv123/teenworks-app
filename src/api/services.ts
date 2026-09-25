@@ -258,9 +258,7 @@ export async function uploadServiceImage(uri: string, userId: string): Promise<s
     if (blob.type) contentType = blob.type;
     name = `image.${contentType.split('/')[1] ?? 'jpg'}`;
   } else {
-    // React Native's fetch reads file: URIs, so this needs no expo-file-system
-    // (the installed v56 is newer than this Expo SDK and isn't built into an
-    // iOS app at all).
+    // React Native's fetch reads file: URIs, so this needs no expo-file-system.
     const response = await fetch(uri);
     if (!response.ok && response.status !== 0) {
       throw new Error(`Could not read photo (${response.status}).`);

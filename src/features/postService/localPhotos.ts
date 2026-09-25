@@ -11,7 +11,7 @@
  */
 import { Platform } from 'react-native';
 
-/** The parts of expo-file-system's legacy API used here, typed by hand; see copyTo. */
+/** The parts of expo-file-system used here. */
 interface LegacyFileSystem {
   documentDirectory: string | null;
   makeDirectoryAsync: (uri: string, options: { intermediates: boolean }) => Promise<void>;
@@ -23,15 +23,13 @@ const PHOTO_DIR_NAME = 'service-photos/';
 
 /**
  * The file system, or null where it can't be used. Required lazily, and only
- * off web: the installed expo-file-system is v56, newer than this Expo SDK.
- * Its legacy API works against SDK 51's native module, but a build that
- * doesn't include that module gets a shim with no document directory, so
+ * off web. Without a document directory, or if the module fails to load,
  * everything here falls back to leaving photos where the picker put them.
  */
 function fileSystem(): LegacyFileSystem | null {
   if (Platform.OS === 'web') return null;
   try {
-    const fs: LegacyFileSystem = require('expo-file-system/legacy');
+    const fs: LegacyFileSystem = require('expo-file-system');
     return fs.documentDirectory ? fs : null;
   } catch (err) {
     console.warn('[TeenWorks] File system unavailable; photos stay in the picker cache:', err);
