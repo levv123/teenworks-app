@@ -1,4 +1,7 @@
-/** The custom bottom tab bar (spec 5): black, hairline top border, Home + Analytics. */
+/**
+ * The custom bottom tab bar (spec 5): black, hairline top border. Earn side is
+ * Home + Analytics; the hire side reuses the same bar for Home + Bookings.
+ */
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +9,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, S, TAB_BAR_HEIGHT } from '../../design/tokens';
 import type { IoniconName } from '../../data/types';
-import type { TabParamList } from '../../navigation/routes';
+import type { HireTabParamList, TabParamList } from '../../navigation/routes';
 import { AppText } from '../../ui';
 
 const ICON_SIZE = 22;
@@ -18,8 +21,12 @@ interface TabSpec {
   label: string;
 }
 
-const ICONS: Record<keyof TabParamList, TabSpec> = {
+type TabName = keyof TabParamList | keyof HireTabParamList;
+
+const ICONS: Record<TabName, TabSpec> = {
   Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
+  HireHome: { active: 'home', inactive: 'home-outline', label: 'Home' },
+  Bookings: { active: 'calendar', inactive: 'calendar-outline', label: 'Bookings' },
   Analytics: {
     active: 'stats-chart',
     inactive: 'stats-chart-outline',
@@ -29,7 +36,7 @@ const ICONS: Record<keyof TabParamList, TabSpec> = {
 
 /** A route the navigator grew that this bar has not been taught still renders. */
 function specFor(routeName: string): TabSpec {
-  if (routeName in ICONS) return ICONS[routeName as keyof TabParamList];
+  if (routeName in ICONS) return ICONS[routeName as TabName];
   return { active: 'ellipse-outline', inactive: 'ellipse-outline', label: routeName };
 }
 

@@ -1,7 +1,8 @@
 /**
- * The whole navigation tree for the TeenWorks frontend: a two-tab navigator
- * (Home + Analytics) nested inside the root stack that owns every secondary
- * screen, plus the single toast host mounted above all of it.
+ * The whole navigation tree for the TeenWorks frontend: one two-tab navigator
+ * per side — Earn (Home + Analytics) and Hire (Home + Bookings) — nested inside
+ * the root stack that owns every secondary screen, plus the single toast host
+ * mounted above all of it. The stack starts on the user's last active side.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -11,8 +12,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { C } from '../design/tokens';
-import type { RootStackParamList, TabParamList } from './routes';
+import type { AppMode } from '../data/types';
+import type { HireTabParamList, RootStackParamList, TabParamList } from './routes';
 import { TabBar, ToastHost } from '../features/chrome';
+import { SIDE_ROOT, useActiveSideRoot } from '../features/sides';
 import { AnalyticsScreen } from '../screens/earn/AnalyticsScreen';
 import { ApplicationsScreen } from '../screens/earn/ApplicationsScreen';
 import { EarnHomeScreen } from '../screens/earn/EarnHomeScreen';
@@ -26,11 +29,14 @@ import { PostServiceScreen } from '../screens/earn/PostServiceScreen';
 import { ProfileScreen } from '../screens/earn/ProfileScreen';
 import { ReviewsScreen } from '../screens/earn/ReviewsScreen';
 import { SavedGigsScreen } from '../screens/earn/SavedGigsScreen';
+import { BookingsScreen } from '../screens/hire/BookingsScreen';
 import { HireHomeScreen } from '../screens/hire/HireHomeScreen';
 import { PostRequestScreen } from '../screens/hire/PostRequestScreen';
 import { WorkerProfileScreen } from '../screens/hire/WorkerProfileScreen';
+import { SwitchSideScreen } from '../screens/sides/SwitchSideScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const HireTab = createBottomTabNavigator<HireTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
@@ -40,6 +46,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const renderTabBar = (props: BottomTabBarProps) => <TabBar {...props} />;
 
 function TabsNavigator() {
+  useActiveSideRoot('earn');
   return (
     <Tab.Navigator
       tabBar={renderTabBar}
@@ -52,21 +59,52 @@ function TabsNavigator() {
   );
 }
 
-export function MainNavigator() {
+/** PLACEHOLDER screens today; the tab structure is the real one. */
+function HireTabsNavigator() {
+  useActiveSideRoot('hire');
+  return (
+    <HireTab.Navigator
+      tabBar={renderTabBar}
+      sceneContainerStyle={styles.scene}
+      screenOptions={{ headerShown: false }}
+    >
+      <HireTab.Screen name="HireHome" component={HireHomeScreen} />
+      <HireTab.Screen name="Bookings" component={BookingsScreen} />
+    </HireTab.Navigator>
+  );
+}
+
+export interface MainNavigatorProps {
+  /** The last active side; read once, it only picks where the stack starts. */
+  initialSide: AppMode;
+}
+
+export function MainNavigator({ initialSide }: MainNavigatorProps) {
   return (
     <View style={styles.root}>
       <Stack.Navigator
+        initialRouteName={SIDE_ROOT[initialSide]}
         screenOptions={{
           headerShown: false,
           contentStyle: styles.scene,
           animation: 'slide_from_right',
         }}
       >
-        {/* First registered, so '/' resolves to the tabs rather than a detail screen. */}
+        {/* The two side roots. Switching sides resets the stack onto the other one. */}
         <Stack.Screen
           name="Tabs"
           component={TabsNavigator}
           options={{ animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="HireTabs"
+          component={HireTabsNavigator}
+          options={{ animation: 'fade' }}
+        />
+        <Stack.Screen
+          name="SwitchSide"
+          component={SwitchSideScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
 
         {/* Earn side */}
@@ -83,7 +121,6 @@ export function MainNavigator() {
         <Stack.Screen name="SavedGigs" component={SavedGigsScreen} />
 
         {/* Hire side */}
-        <Stack.Screen name="HireHome" component={HireHomeScreen} />
         <Stack.Screen name="PostRequest" component={PostRequestScreen} />
         <Stack.Screen name="WorkerProfile" component={WorkerProfileScreen} />
       </Stack.Navigator>

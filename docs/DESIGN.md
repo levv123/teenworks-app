@@ -212,23 +212,34 @@ title (`h2`) and an optional right slot; 8px below the safe area, 20px gutter.
 | Post a Service | `PostService` | white CTA | Form: title, category picker (chips), rate + rate type (Hourly / Fixed), description, availability day toggles, location. Live validation, disabled submit until valid, success toast, navigates back and the new service appears in My Services. |
 | My Services | `MyServices` | Profile / after posting | List of services the user offers with edit + pause/activate; empty state if none. |
 | Past Jobs | `PastJobs` | header link | Completed jobs grouped newest-first: title, client, date, payout, rating stars; header summary of total earned + jobs count. |
-| Profile | `Profile` | avatar | Avatar + name + `@handle`, trust score card (score 0–100 with progress + level label), verification badges, stat row (jobs, rating, response time), links: My Services, Past Jobs, Saved Gigs, Applications, Switch to Hiring, Settings. |
+| Profile | `Profile` | avatar (either side) | Identity row (avatar, name, `@handle`), links: Account Settings, Payment Methods, Past Bookings, Reviews, Saved Services; the bordered switch card (**Hire Someone** on Earn, **Earn Money** on Hire) → `SwitchSide`; Earn only: a "Your Work" group (My Services, Past Jobs, Saved Gigs, Applications); Help & Support; Log Out (red). |
 | Location Picker | `LocationPicker` | "Change" | Search field + list of nearby cities with distance; a radius slider row (1/3/5/10/25 mi) as chips; selecting updates the Home location bar and re-filters gigs by distance. |
 | Earnings Breakdown | `EarningsBreakdown` | "See all" | Every category with amount, %, job count and a bar; totals header. |
 | Reviews | `Reviews` | "See all" | Rating summary (average, count, 5→1 distribution bars) and the full review list (avatar, name, role, stars, date, body). |
 | Applications | `Applications` | Profile | Gigs the user applied to, with status pill (Applied / Accepted / Declined). |
 | Saved Gigs | `SavedGigs` | Profile | Saved gigs, unsave from the row, empty state. |
 
-### 6.1 Hire side — `HireHomeScreen` (`HireHome`) + `PostRequest`
+### 6.1 Switching sides — `SwitchSideScreen` (`SwitchSide`, param `to`)
 
-Reached from Profile → **Switch to Hiring**. Same design language.
-- Header `Hire` / `Get it done today.` + the location bar.
-- A white CTA **Post a Request** → `PostRequest` (title, category, budget, when,
-  description → creates a request that shows in "Your requests").
-- `Your requests` section: request cards with status pill and applicant count.
-- `Workers near you`: `WorkerCard` rows — avatar, name, headline, rating + jobs,
-  distance, starting price, and a **Hire** button that opens the worker profile.
-- Switching back to Earn from the same screen's header.
+Reached from the Profile switch card. Black, `close` (X) top-left, centered two-line
+`h1` headline, muted `small` copy, four icon rows, one white CTA.
+- `to: 'hire'` — **Get Help with TeenWorks**; rows Find services near you / Browse
+  trusted providers / Book help / Get things done; CTA **Switch to Hire Side**.
+- `to: 'earn'` — **Earn Money with TeenWorks**; rows Find gigs near you / Set your own
+  prices / Build your reputation / Get paid; CTA **Switch to Earn Side**.
+
+The CTA sets the store's `mode` (the persisted active side) and resets the stack onto
+that side's root, so Back never crosses sides.
+
+### 6.2 Hire side — `HireTabs` (Home | Bookings) — PLACEHOLDER
+
+- `HireHome` — `TeenWorks` header + avatar, `Get things done. Support local teens.`,
+  location bar, search bar, category chips, `Find Help Nearby` preview feed (`GigCard`
+  rows), white **Upload a Need** CTA. Search, the feed rows, See all and the CTA only
+  show a "coming soon" toast.
+- `Bookings` — header + empty state; "Find help" returns to `HireHome`.
+- `PostRequest` and `WorkerProfile` stay registered (deep links) but nothing on the new
+  Hire Home links to them yet.
 
 ---
 
@@ -282,6 +293,12 @@ useSavedGigs(), useApplications(), useIsSaved(id), useHasApplied(id)
 ```
 State is in-memory with `AsyncStorage` persistence for `savedIds`, `applications`,
 `services`, `requests`, `location`, `radiusMi` under the key `teenworks.v1`.
+
+`mode` is the **last active side** and is stored on its own under
+`teenworks.activeSide` (`'earn' | 'hire'`), written the moment `setMode` runs.
+`modeReady` flips once it has been read (1.5s fallback); the navigator waits for it and
+starts the stack on that side's root (`Tabs` or `HireTabs`), and a bare `/` on the web
+resolves to that side's Home. First launch with nothing stored opens Earn.
 Hydration must never block the first paint and must be wrapped in try/catch — a
 storage failure is a no-op, not a crash.
 

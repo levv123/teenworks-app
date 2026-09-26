@@ -6,15 +6,27 @@
  */
 import type { NavigatorScreenParams, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { CategoryId } from '../data/types';
+import type { AppMode, CategoryId } from '../data/types';
 
+/** Earn side tabs. */
 export type TabParamList = {
   Home: undefined;
   Analytics: undefined;
 };
 
+/** Hire side tabs. */
+export type HireTabParamList = {
+  HireHome: undefined;
+  Bookings: undefined;
+};
+
 export type RootStackParamList = {
+  /** Earn side root. */
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
+  /** Hire side root. Exactly one of the two roots sits at the bottom of the stack. */
+  HireTabs: NavigatorScreenParams<HireTabParamList> | undefined;
+  /** The full-screen confirmation that moves the user to the other side. */
+  SwitchSide: { to: AppMode };
 
   // Earn side
   Gigs: { category?: CategoryId } | undefined;
@@ -31,7 +43,6 @@ export type RootStackParamList = {
   SavedGigs: undefined;
 
   // Hire side
-  HireHome: undefined;
   PostRequest: undefined;
   WorkerProfile: { workerId: string };
 };

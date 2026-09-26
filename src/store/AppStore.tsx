@@ -43,6 +43,14 @@ import {
 } from '../data/mock';
 
 const STORAGE_KEY = 'teenworks.v1';
+/**
+ * The last active side lives under its own key: it decides the first screen,
+ * so it is written the moment the user switches instead of riding the debounced
+ * blob, and it can be read before anything else in the session is.
+ */
+const ACTIVE_SIDE_KEY = 'teenworks.activeSide';
+/** A storage backend that never answers must not strand the app on a black screen. */
+const SIDE_READ_TIMEOUT_MS = 1500;
 const TOAST_MS = 2200;
 
 export interface AppLocation {
@@ -52,7 +60,10 @@ export interface AppLocation {
 
 export interface AppState {
   user: User;
+  /** The active side (`activeSide`). Persisted; decides the screen the app opens on. */
   mode: AppMode;
+  /** False until the stored side has been read, so the navigator knows where to start. */
+  modeReady: boolean;
   location: AppLocation;
   radiusMi: number;
   category: CategoryId;
@@ -191,6 +202,7 @@ function persistedOf(state: AppState): PersistedState {
 type Action =
   | { type: 'hydrate'; payload: Partial<PersistedState> }
   | { type: 'setMode'; mode: AppMode }
+  | { type: 'hydrateMode'; mode: AppMode | null }
   | { type: 'setCategory'; category: CategoryId }
   | { type: 'setQuery'; query: string }
   | { type: 'setSort'; sort: GigSort }
@@ -209,7 +221,9 @@ type Action =
 
 const INITIAL_STATE: AppState = {
   user: USER,
+  // Only the fallback for a first launch; the stored side replaces it on hydrate.
   mode: 'earn',
+  modeReady: false,
   location: { label: 'Surfside, FL', distanceMi: 3 },
   radiusMi: 3,
   category: 'all',
@@ -239,7 +253,10 @@ function reducer(state: AppState, action: Action): AppState {
         radiusMi: action.payload.radiusMi ?? state.radiusMi,
       };
     case 'setMode':
-      return { ...state, mode: action.mode };
+      return state.mode === action.mode ? state : { ...state, mode: action.mode };
+    case 'hydrateMode':
+      if (state.modeReady) return state;
+      return { ...state, mode: action.mode ?? state.mode, modeReady: true };
     case 'setCategory':
       return { ...state, category: action.category };
     case 'setQuery':
@@ -378,6 +395,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // The side is read on its own so the first screen can wait on it without
+  // waiting on the rest of the session.
+  useEffect(() => {
+    let settled = false;
+    const settle = (mode: AppMode | null) => {
+      if (settled) return;
+      settled = true;
+      dispatch({ type: 'hydrateMode', mode });
+    };
+    const timer = setTimeout(() => settle(null), SIDE_READ_TIMEOUT_MS);
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(ACTIVE_SIDE_KEY);
+        settle(raw === 'earn' || raw === 'hire' ? raw : null);
+      } catch {
+        settle(null);
+      }
+    })();
+    return () => {
+      settled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
   // Persist. The hydrated guard keeps the empty pre-hydration state from
   // overwriting what is already on disk.
   useEffect(() => {
@@ -403,7 +444,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const actions = useMemo<AppActions>(
     () => ({
-      setMode: (mode) => dispatch({ type: 'setMode', mode }),
+      setMode: (mode) => {
+        dispatch({ type: 'setMode', mode });
+        try {
+          void AsyncStorage.setItem(ACTIVE_SIDE_KEY, mode).catch(() => {
+            // A failed write only costs the next launch its starting side.
+          });
+        } catch {
+          // Same for a synchronous throw from a missing storage backend.
+        }
+      },
       setCategory: (category) => dispatch({ type: 'setCategory', category }),
       setQuery: (query) => dispatch({ type: 'setQuery', query }),
       setSort: (sort) => dispatch({ type: 'setSort', sort }),

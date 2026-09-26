@@ -11,6 +11,7 @@
     "src/features/**/*",
     "src/screens/earn/**/*",
     "src/screens/hire/**/*",
+    "src/screens/sides/**/*",
     "src/navigation/routes.ts",
     "src/navigation/MainNavigator.tsx",
     "src/store/AppStore.tsx",
