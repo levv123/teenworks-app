@@ -11,6 +11,7 @@ import { C, R, S, TABULAR } from '../../design/tokens';
 import type { IoniconName } from '../../data/types';
 import type { Nav } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
+import { useSwitchMode } from '../../features/chrome';
 import {
   AppText,
   Avatar,
@@ -38,7 +39,13 @@ interface LinkRow {
 
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
-  const { user, pastJobs, savedIds, applications, setMode, showToast } = useApp();
+  const { user, pastJobs, savedIds, applications, bookings, requests, mode, showToast } =
+    useApp();
+  const switchMode = useSwitchMode();
+  const upcomingBookings = bookings.filter(
+    (b) => b.status === 'requested' || b.status === 'confirmed',
+  ).length;
+  const openNeeds = requests.filter((r) => r.status === 'open').length;
 
   // The profile rating is the average of what clients actually paid for, so it
   // stays put while the Analytics range changes.
@@ -48,11 +55,12 @@ export function ProfileScreen() {
     return rated.reduce((sum, job) => sum + job.rating, 0) / rated.length;
   }, [pastJobs]);
 
-  const switchToHiring = useCallback(() => {
-    setMode('hire');
-    nav.navigate('HireHome');
-    showToast('Switched to hiring');
-  }, [nav, setMode, showToast]);
+  // One account, two sides: switching only changes which tabs are showing.
+  const switchSides = useCallback(() => {
+    const next = mode === 'earn' ? 'hire' : 'earn';
+    switchMode(next);
+    showToast(next === 'hire' ? 'Switched to hiring' : 'Switched to earning');
+  }, [mode, switchMode, showToast]);
 
   const score = Number.isFinite(user.trustScore) ? Math.round(user.trustScore) : 0;
 
@@ -74,7 +82,7 @@ export function ProfileScreen() {
     },
   ];
 
-  const links: LinkRow[] = [
+  const earnLinks: LinkRow[] = [
     {
       label: 'My Services',
       icon: 'pricetags-outline',
@@ -97,10 +105,33 @@ export function ProfileScreen() {
       count: applications.length,
       onPress: () => nav.navigate('Applications'),
     },
+  ];
+
+  const hireLinks: LinkRow[] = [
     {
-      label: 'Switch to Hiring',
+      label: 'Bookings',
+      icon: 'calendar-outline',
+      count: upcomingBookings,
+      onPress: () => nav.navigate('Tabs', { screen: 'Bookings', params: { segment: 'upcoming' } }),
+    },
+    {
+      label: 'My Needs',
+      icon: 'megaphone-outline',
+      count: openNeeds,
+      onPress: () => nav.navigate('Tabs', { screen: 'Bookings', params: { segment: 'needs' } }),
+    },
+  ];
+
+  // The side you're on comes first; the other side's links stay one tap away.
+  const links: LinkRow[] = [
+    ...(mode === 'earn' ? earnLinks : hireLinks),
+    ...(mode === 'earn' ? hireLinks : earnLinks).map((link, i) =>
+      i === 0 ? { ...link, dividerBefore: true } : link,
+    ),
+    {
+      label: mode === 'earn' ? 'Switch to Hiring' : 'Switch to Earning',
       icon: 'swap-horizontal',
-      onPress: switchToHiring,
+      onPress: switchSides,
       dividerBefore: true,
     },
     {

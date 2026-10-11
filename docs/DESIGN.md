@@ -219,16 +219,42 @@ title (`h2`) and an optional right slot; 8px below the safe area, 20px gutter.
 | Applications | `Applications` | Profile | Gigs the user applied to, with status pill (Applied / Accepted / Declined). |
 | Saved Gigs | `SavedGigs` | Profile | Saved gigs, unsave from the row, empty state. |
 
-### 6.1 Hire side — `HireHomeScreen` (`HireHome`) + `PostRequest`
+### 6.1 Earn / Hire switch
 
-Reached from Profile → **Switch to Hiring**. Same design language.
-- Header `Hire` / `Get it done today.` + the location bar.
-- A white CTA **Post a Request** → `PostRequest` (title, category, budget, when,
-  description → creates a request that shows in "Your requests").
-- `Your requests` section: request cards with status pill and applicant count.
-- `Workers near you`: `WorkerCard` rows — avatar, name, headline, rating + jobs,
-  distance, starting price, and a **Hire** button that opens the worker profile.
-- Switching back to Earn from the same screen's header.
+Both sides live in **one account and one tab navigator** (`Tabs`). The tab bar shows
+the pair that belongs to the focused side: **Home + Analytics** while earning,
+**Home + Bookings** while hiring. Switching is only a tab change, so nothing is
+remounted, signed out or reset.
+
+- **Primary switch** — `ModeSwitch` (`src/features/chrome/ModeSwitch.tsx`), a full-width
+  two-segment pill directly under the brand row of both Home headers: `surfaceAlt`
+  track, 1px `border`, `R.full`, 3px inset; active segment solid white with `onLight`
+  label + icon (`cash-outline` Earn, `search-outline` Hire), `bodyBold`.
+- **Secondary switch** — Profile → `Switch to Hiring` / `Switch to Earning` (label follows
+  the current side). Profile also lists the other side's links (Bookings, My Needs)
+  below a divider.
+- Each tab screen calls `useModeOnFocus(mode)` so `state.mode` always names the side
+  on screen.
+
+### 6.2 Hire side
+
+| Screen | Route | Contents |
+|---|---|---|
+| Home (Hire) | tab `Hire` (`/hire`) | Brand row + `Bookings` link + avatar, `ModeSwitch`, tagline, search field, location bar, all 8 category chips, white **Upload a Need** CTA, open-needs shortcut row, `Services Near You` list of `ListingCard` rows (filtered by category, search, radius; blocked workers hidden). Pull to refresh. |
+| Bookings | tab `Bookings` (`/bookings`) | Underlined segments **Upcoming / Needs / Past** (driven by the `segment` route param). `BookingCard`s with status pills; Needs reuses `RequestCard`. Empty states per segment. |
+| Service | `ServiceListing` | Hero, title + rate, pills, worker row → profile, description, what's included, 7-day availability strip, compact safety note, sticky **Book {name}** CTA, report flag. |
+| Book a Service | `BookService` | Date chips (next available days), time slots ending by 7pm, hours stepper for hourly work (1–4), area, notes, required safety confirmation, estimated total, async submit with loading + error banner → success screen. |
+| Booking | `BookingDetail` | Status pill + explanation, Requested → Confirmed → Completed progress, worker, details card, then status actions: mark completed, star review, book again, cancel with inline confirmation, report. |
+| Upload a Need | `PostRequest` (`/hire/need`) | 3 steps with progress bar: what (title, category, description) → when, area and budget → review (hazard-word warning + required safety confirmation) → success. |
+| Your Need | `NeedDetail` | Brief, applicants with **Hire** (inline confirm → creates a confirmed booking), close need, hired worker + booking link. |
+| Report | `Report` | 911 shortcut, reasons (inappropriate, off-platform, personal info/photos, unsafe job, no-show, payment, other), details, optional block. |
+| Worker | `WorkerProfile` | Identity, stats, categories, bio, their services, Book CTA, block / unblock, report. |
+
+Status pills: `Awaiting reply` outline · `Confirmed` success · `Completed` light ·
+`Cancelled` danger · `Declined` neutral.
+
+All Hire-side writes go through `src/services/marketplace.ts` (async, validated,
+simulated latency), so swapping in the Supabase API changes no screen.
 
 ---
 

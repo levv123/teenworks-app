@@ -1,4 +1,9 @@
-/** The custom bottom tab bar (spec 5): black, hairline top border, Home + Analytics. */
+/**
+ * The custom bottom tab bar (spec 5): black, hairline top border.
+ *
+ * The navigator holds all four tabs; the bar shows the pair that belongs to the
+ * focused side — Home + Analytics while earning, Home + Bookings while hiring.
+ */
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +11,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, S, TAB_BAR_HEIGHT } from '../../design/tokens';
 import type { IoniconName } from '../../data/types';
+import { HIRE_TABS } from '../../navigation/routes';
 import type { TabParamList } from '../../navigation/routes';
 import { AppText } from '../../ui';
 
@@ -25,7 +31,11 @@ const ICONS: Record<keyof TabParamList, TabSpec> = {
     inactive: 'stats-chart-outline',
     label: 'Analytics',
   },
+  Hire: { active: 'home', inactive: 'home-outline', label: 'Home' },
+  Bookings: { active: 'calendar', inactive: 'calendar-outline', label: 'Bookings' },
 };
+
+const isHireTab = (name: string) => (HIRE_TABS as string[]).includes(name);
 
 /** A route the navigator grew that this bar has not been taught still renders. */
 function specFor(routeName: string): TabSpec {
@@ -35,6 +45,8 @@ function specFor(routeName: string): TabSpec {
 
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const focusedName = state.routes[state.index]?.name ?? 'Home';
+  const hireSide = isHireTab(focusedName);
 
   return (
     <View
@@ -44,6 +56,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       ]}
     >
       {state.routes.map((route, index) => {
+        if (isHireTab(route.name) !== hireSide) return null;
         const spec = specFor(route.name);
         const focused = state.index === index;
         const tint = focused ? C.text : C.textSubtle;

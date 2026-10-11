@@ -9,19 +9,22 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { C, R, S, TABULAR } from '../../design/tokens';
-import { CATEGORY_BY_ID, WORKERS } from '../../data/mock';
+import { CATEGORY_BY_ID } from '../../data/mock';
 import type { IoniconName, Worker } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
-import { useApp } from '../../store/AppStore';
+import { useApp, useWorker } from '../../store/AppStore';
+import { ListingCard } from '../../features/hire';
 import {
   AppText,
   Avatar,
   Card,
   EmptyState,
+  IconButton,
   Pill,
   PrimaryButton,
   Screen,
   ScreenHeader,
+  SecondaryButton,
   Stars,
 } from '../../ui';
 import { formatDistance, formatMoney, formatRating } from '../../utils/format';
@@ -54,19 +57,40 @@ function bioFor(worker: Worker, categoryLabels: string[]): string {
 export function WorkerProfileScreen() {
   const nav = useNavigation<Nav>();
   const { params } = useRoute<Route<'WorkerProfile'>>();
-  const { showToast } = useApp();
-
-  const worker =
-    WORKERS.find((candidate) => candidate.id === params.workerId) ?? null;
+  const { listings, blockedWorkerIds, toggleBlockWorker } = useApp();
+  const worker = useWorker(params.workerId);
+  const theirListings = listings.filter((l) => l.workerId === params.workerId);
+  const blocked = blockedWorkerIds.includes(params.workerId);
 
   const goBack = useCallback(() => nav.goBack(), [nav]);
-  const header = <ScreenHeader title="Worker" onBack={goBack} />;
+  const header = (
+    <ScreenHeader
+      title="Worker"
+      onBack={goBack}
+      right={
+        worker ? (
+          <IconButton
+            icon="flag-outline"
+            accessibilityLabel={`Report ${worker.name}`}
+            onPress={() =>
+              nav.navigate('Report', {
+                targetType: 'worker',
+                targetId: worker.id,
+                name: worker.name,
+                workerId: worker.id,
+              })
+            }
+          />
+        ) : undefined
+      }
+    />
+  );
 
-  const request = useCallback(() => {
-    if (worker === null) return;
-    showToast(`Request sent to ${worker.name}`);
-    nav.goBack();
-  }, [nav, showToast, worker]);
+  const book = useCallback(() => {
+    const first = theirListings[0];
+    if (first) nav.navigate('BookService', { listingId: first.id });
+    else nav.navigate('PostRequest');
+  }, [nav, theirListings]);
 
   if (worker === null) {
     return (
@@ -107,10 +131,22 @@ export function WorkerProfileScreen() {
     <Screen
       header={header}
       footer={
-        <PrimaryButton
-          label={`Request ${firstNameOf(worker.name)}`}
-          onPress={request}
-        />
+        blocked ? (
+          <SecondaryButton
+            label={`Unblock ${firstNameOf(worker.name)}`}
+            icon="lock-open-outline"
+            onPress={() => toggleBlockWorker(worker.id)}
+          />
+        ) : (
+          <PrimaryButton
+            label={
+              theirListings.length > 0
+                ? `Book ${firstNameOf(worker.name)}`
+                : 'Upload a Need instead'
+            }
+            onPress={book}
+          />
+        )
       }
     >
       <View style={styles.identity}>
@@ -189,6 +225,37 @@ export function WorkerProfileScreen() {
       <AppText variant="small" color={C.textSubtle} style={styles.priceNote}>
         {`Jobs start at ${formatMoney(worker.startingPrice)}`}
       </AppText>
+
+      {theirListings.length > 0 ? (
+        <>
+          <AppText variant="h3" style={styles.sectionTitle}>
+            Services
+          </AppText>
+          {theirListings.map((listing, index) => (
+            <View key={listing.id} style={index > 0 ? styles.listingGap : undefined}>
+              <ListingCard
+                listing={listing}
+                worker={worker}
+                onPress={() => nav.navigate('ServiceListing', { listingId: listing.id })}
+              />
+            </View>
+          ))}
+        </>
+      ) : null}
+
+      {blocked ? (
+        <AppText variant="small" color={C.danger} style={styles.blockNote}>
+          You blocked this worker. They're hidden from your results.
+        </AppText>
+      ) : (
+        <SecondaryButton
+          label="Block"
+          icon="ban-outline"
+          size="sm"
+          onPress={() => toggleBlockWorker(worker.id)}
+          style={styles.blockBtn}
+        />
+      )}
     </Screen>
   );
 }
@@ -258,5 +325,16 @@ const styles = StyleSheet.create({
   },
   priceNote: {
     marginTop: S.base,
+  },
+  listingGap: {
+    marginTop: 18,
+  },
+  blockNote: {
+    marginTop: S.xl,
+    textAlign: 'center',
+  },
+  blockBtn: {
+    marginTop: S.xl,
+    alignSelf: 'center',
   },
 });
