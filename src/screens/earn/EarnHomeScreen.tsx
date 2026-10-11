@@ -14,7 +14,7 @@ import type { Nav } from '../../navigation/routes';
 import { useApp, useVisibleGigs } from '../../store/AppStore';
 import { AppText, EmptyState, PrimaryButton, Screen, SectionHeader } from '../../ui';
 import { CategoryChips, GigCard, LocationBar } from '../../features/gigs';
-import { HeaderAvatar } from '../../features/chrome';
+import { HeaderAvatar, ModeSwitch, useModeOnFocus } from '../../features/chrome';
 
 /** The feed teaser; the full list lives behind "See all". */
 const FEED_LIMIT = 4;
@@ -23,6 +23,7 @@ export function EarnHomeScreen() {
   const nav = useNavigation<Nav>();
   const { category, location, radiusMi, setCategory } = useApp();
   const visible = useVisibleGigs();
+  useModeOnFocus('earn');
   const feed = visible.slice(0, FEED_LIMIT);
 
   const openGig = useCallback(
@@ -59,6 +60,9 @@ export function EarnHomeScreen() {
             <HeaderAvatar />
           </View>
         </View>
+
+        {/* The persistent Earn / Hire switch — same account, same data. */}
+        <ModeSwitch current="earn" style={styles.modeSwitch} />
 
         <AppText variant="body" color={C.textMuted} style={styles.tagline}>
           Make money. Build your future.
@@ -142,8 +146,11 @@ const styles = StyleSheet.create({
   linkText: {
     textDecorationLine: 'underline',
   },
+  modeSwitch: {
+    marginTop: S.md,
+  },
   tagline: {
-    marginTop: 2,
+    marginTop: S.md,
   },
   locationBar: {
     marginTop: 18,

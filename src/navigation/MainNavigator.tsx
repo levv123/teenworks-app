@@ -1,7 +1,8 @@
 /**
- * The whole navigation tree for the TeenWorks frontend: a two-tab navigator
- * (Home + Analytics) nested inside the root stack that owns every secondary
- * screen, plus the single toast host mounted above all of it.
+ * The whole navigation tree for the TeenWorks frontend: one tab navigator that
+ * holds both sides of the account (Earn: Home + Analytics; Hire: Home +
+ * Bookings — the tab bar shows whichever pair is active), nested inside the
+ * root stack that owns every secondary screen, plus the single toast host.
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -26,8 +27,14 @@ import { PostServiceScreen } from '../screens/earn/PostServiceScreen';
 import { ProfileScreen } from '../screens/earn/ProfileScreen';
 import { ReviewsScreen } from '../screens/earn/ReviewsScreen';
 import { SavedGigsScreen } from '../screens/earn/SavedGigsScreen';
+import { BookingDetailScreen } from '../screens/hire/BookingDetailScreen';
+import { BookingsScreen } from '../screens/hire/BookingsScreen';
+import { BookServiceScreen } from '../screens/hire/BookServiceScreen';
 import { HireHomeScreen } from '../screens/hire/HireHomeScreen';
+import { NeedDetailScreen } from '../screens/hire/NeedDetailScreen';
 import { PostRequestScreen } from '../screens/hire/PostRequestScreen';
+import { ReportScreen } from '../screens/hire/ReportScreen';
+import { ServiceListingScreen } from '../screens/hire/ServiceListingScreen';
 import { WorkerProfileScreen } from '../screens/hire/WorkerProfileScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -48,6 +55,8 @@ function TabsNavigator() {
     >
       <Tab.Screen name="Home" component={EarnHomeScreen} />
       <Tab.Screen name="Analytics" component={AnalyticsScreen} />
+      <Tab.Screen name="Hire" component={HireHomeScreen} />
+      <Tab.Screen name="Bookings" component={BookingsScreen} />
     </Tab.Navigator>
   );
 }
@@ -83,9 +92,17 @@ export function MainNavigator() {
         <Stack.Screen name="SavedGigs" component={SavedGigsScreen} />
 
         {/* Hire side */}
-        <Stack.Screen name="HireHome" component={HireHomeScreen} />
         <Stack.Screen name="PostRequest" component={PostRequestScreen} />
         <Stack.Screen name="WorkerProfile" component={WorkerProfileScreen} />
+        <Stack.Screen name="ServiceListing" component={ServiceListingScreen} />
+        <Stack.Screen name="BookService" component={BookServiceScreen} />
+        <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
+        <Stack.Screen name="NeedDetail" component={NeedDetailScreen} />
+        <Stack.Screen
+          name="Report"
+          component={ReportScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
       </Stack.Navigator>
 
       {/* Sibling of the navigator, not a child of it, so the pill outlives screen changes. */}

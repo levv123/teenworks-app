@@ -1,84 +1,97 @@
 /**
- * Home (Hire) — spec 6.1.
+ * Home (Hire) — the hiring side's home tab.
  *
- * The other half of the app: what the user has asked for, and who nearby can do
- * it. Rendered unpadded so the worker category filter can scroll full-bleed;
- * every other block opts into the gutter explicitly.
+ * Mirrors the Earn home: brand header with the Earn / Hire switch, location,
+ * category chips, then search and the services nearby workers offer. The white
+ * "Upload a Need" CTA covers everything search can't find.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { C, GUTTER, S } from '../../design/tokens';
-import { CATEGORIES, WORKERS } from '../../data/mock';
+import { C, GUTTER, R, S, TABULAR } from '../../design/tokens';
+import { CATEGORIES } from '../../data/mock';
 import type { CategoryId } from '../../data/types';
 import type { Nav } from '../../navigation/routes';
-import { useApp } from '../../store/AppStore';
+import { useApp, useVisibleListings } from '../../store/AppStore';
+import { refreshListings } from '../../services/marketplace';
 import {
   AppText,
   EmptyState,
   PrimaryButton,
   Screen,
+  SearchField,
   SectionHeader,
-  SecondaryButton,
 } from '../../ui';
 import { CategoryChips, LocationBar } from '../../features/gigs';
-import { RequestCard, WorkerCard } from '../../features/hire';
+import { ListingCard } from '../../features/hire';
+import { HeaderAvatar, ModeSwitch, useModeOnFocus } from '../../features/chrome';
 
 export function HireHomeScreen() {
   const nav = useNavigation<Nav>();
-  const { location, radiusMi, requests, setMode, showToast } = useApp();
+  const { location, radiusMi, requests, workers, bookings } = useApp();
+  useModeOnFocus('hire');
 
-  // Local rather than the store's `category`: the Hire filter must not quietly
-  // re-filter the gig feed the user left behind on the Earn side.
+  // Local, not the store's `category` / `query`: those drive the Earn gig feed,
+  // and browsing services must not quietly re-filter the side the user left.
   const [category, setCategory] = useState<CategoryId>('all');
+  const [query, setQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const workers = useMemo(
-    () =>
-      WORKERS.filter((worker) => {
-        if (worker.distanceMi > radiusMi) return false;
-        if (category === 'all') return true;
-        return worker.categories.includes(category);
-      }),
-    [category, radiusMi],
-  );
+  const listings = useVisibleListings(category, query);
+  const workerById = useMemo(() => new Map(workers.map((w) => [w.id, w])), [workers]);
 
-  const switchToEarning = useCallback(() => {
-    setMode('earn');
-    showToast('Switched to earning');
-    // Reached from Profile there is a stack to pop; reached by deep link to
-    // /hire there is not, and this is the screen's only exit.
-    if (nav.canGoBack()) nav.goBack();
-    else nav.navigate('Tabs', { screen: 'Home' });
-  }, [nav, setMode, showToast]);
+  const openNeeds = requests.filter((r) => r.status === 'open');
+  const applicantCount = openNeeds.reduce((sum, r) => sum + Math.max(0, r.applicants), 0);
+  const upcoming = bookings.filter((b) => b.status === 'requested' || b.status === 'confirmed');
 
-  const postRequest = useCallback(() => nav.navigate('PostRequest'), [nav]);
+  const uploadNeed = useCallback(() => nav.navigate('PostRequest'), [nav]);
 
-  const openWorker = useCallback(
-    (workerId: string) => nav.navigate('WorkerProfile', { workerId }),
-    [nav],
-  );
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshListings();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  const filtered = category !== 'all' || query.trim().length > 0;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} refreshing={refreshing} onRefresh={onRefresh}>
       <View style={styles.gutter}>
         <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <AppText variant="display" numberOfLines={1}>
-              Hire
-            </AppText>
-            <AppText variant="body" color={C.textMuted} style={styles.tagline}>
-              Get it done today.
-            </AppText>
+          <AppText variant="display" numberOfLines={1} style={styles.brand}>
+            TeenWorks
+          </AppText>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => nav.navigate('Tabs', { screen: 'Bookings', params: { segment: 'upcoming' } })}
+              accessibilityRole="button"
+              accessibilityLabel={`Bookings, ${upcoming.length} upcoming`}
+              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+            >
+              <AppText variant="small" style={styles.linkText}>
+                Bookings
+              </AppText>
+            </Pressable>
+            <HeaderAvatar />
           </View>
-
-          <SecondaryButton
-            label="Switch to Earning"
-            icon="swap-horizontal"
-            size="sm"
-            onPress={switchToEarning}
-            style={styles.switch}
-          />
         </View>
+
+        <ModeSwitch current="hire" style={styles.modeSwitch} />
+
+        <AppText variant="body" color={C.textMuted} style={styles.tagline}>
+          Get it done today. Hire someone nearby.
+        </AppText>
+
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search services, e.g. dog walking"
+          style={styles.search}
+        />
 
         <LocationBar
           place={location.label}
@@ -86,34 +99,6 @@ export function HireHomeScreen() {
           onChange={() => nav.navigate('LocationPicker')}
           style={styles.locationBar}
         />
-
-        <PrimaryButton
-          label="Post a Request"
-          sublabel="Tell us what you need done."
-          icon="add"
-          onPress={postRequest}
-          style={styles.cta}
-        />
-
-        <SectionHeader title="Your requests" style={styles.sectionHeader} />
-
-        {requests.length === 0 ? (
-          <EmptyState
-            icon="clipboard-outline"
-            title="No requests yet"
-            message="Post what you need done and nearby workers can apply for it."
-            actionLabel="Post a Request"
-            onAction={postRequest}
-          />
-        ) : (
-          requests.map((request, index) => (
-            <View key={request.id} style={index === 0 ? undefined : styles.requestGap}>
-              <RequestCard request={request} />
-            </View>
-          ))
-        )}
-
-        <SectionHeader title="Workers near you" style={styles.sectionHeader} />
       </View>
 
       <CategoryChips
@@ -124,25 +109,65 @@ export function HireHomeScreen() {
       />
 
       <View style={styles.gutter}>
-        {workers.length === 0 ? (
+        <PrimaryButton
+          label="Upload a Need"
+          sublabel="Describe the job. Nearby workers respond."
+          icon="add"
+          onPress={uploadNeed}
+          style={styles.cta}
+        />
+
+        {openNeeds.length > 0 ? (
+          <Pressable
+            onPress={() => nav.navigate('Tabs', { screen: 'Bookings', params: { segment: 'needs' } })}
+            accessibilityRole="button"
+            accessibilityLabel={`${openNeeds.length} open needs with ${applicantCount} applicants. View needs.`}
+            style={({ pressed }) => [styles.needsRow, pressed && styles.pressed]}
+          >
+            <Ionicons name="megaphone-outline" size={18} color={C.text} />
+            <AppText variant="body" numberOfLines={1} style={styles.needsText}>
+              {`${openNeeds.length} open ${openNeeds.length === 1 ? 'need' : 'needs'}`}
+            </AppText>
+            <AppText variant="small" color={C.textMuted} style={TABULAR}>
+              {`${applicantCount} ${applicantCount === 1 ? 'applicant' : 'applicants'}`}
+            </AppText>
+            <Ionicons name="chevron-forward" size={16} color={C.textSubtle} style={styles.chev} />
+          </Pressable>
+        ) : null}
+
+        <SectionHeader
+          title={filtered ? `${listings.length} ${listings.length === 1 ? 'result' : 'results'}` : 'Services Near You'}
+          actionLabel={filtered ? 'Clear' : undefined}
+          onAction={
+            filtered
+              ? () => {
+                  setCategory('all');
+                  setQuery('');
+                }
+              : undefined
+          }
+          style={styles.sectionHeader}
+        />
+
+        {listings.length === 0 ? (
           <EmptyState
-            icon="people-outline"
-            title="No workers in range"
-            message="Nobody nearby matches that filter right now. Try another category or widen your search area."
-            actionLabel={category === 'all' ? 'Change location' : 'Show everyone'}
-            onAction={
-              category === 'all'
-                ? () => nav.navigate('LocationPicker')
-                : () => setCategory('all')
+            icon="search-outline"
+            title={filtered ? 'No services match' : 'No services in range yet'}
+            message={
+              filtered
+                ? "Nobody nearby offers that right now. Upload a need and let workers come to you."
+                : 'Widen your search area, or upload a need so nearby workers can find you.'
             }
+            actionLabel="Upload a Need"
+            onAction={uploadNeed}
           />
         ) : (
-          workers.map((worker, index) => (
-            <View key={worker.id} style={index === 0 ? undefined : styles.workerGap}>
-              <WorkerCard
-                worker={worker}
-                onPress={() => openWorker(worker.id)}
-                onHire={() => openWorker(worker.id)}
+          listings.map((listing, index) => (
+            <View key={listing.id} style={index === 0 ? undefined : styles.rowGap}>
+              <ListingCard
+                listing={listing}
+                worker={workerById.get(listing.workerId) ?? null}
+                onPress={() => nav.navigate('ServiceListing', { listingId: listing.id })}
               />
             </View>
           ))
@@ -161,34 +186,66 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerText: {
+  brand: {
     flex: 1,
     minWidth: 0,
   },
-  tagline: {
-    marginTop: 2,
-  },
-  switch: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginLeft: S.md,
   },
+  link: {
+    marginRight: S.md,
+  },
+  linkText: {
+    textDecorationLine: 'underline',
+  },
+  modeSwitch: {
+    marginTop: S.md,
+  },
+  tagline: {
+    marginTop: S.md,
+  },
+  search: {
+    marginTop: S.base,
+  },
   locationBar: {
-    marginTop: 18,
+    marginTop: S.base,
+  },
+  chips: {
+    marginTop: S.xl,
   },
   cta: {
     marginTop: S.xl,
+  },
+  needsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: S.md,
+    paddingVertical: S.md,
+    paddingHorizontal: S.base,
+    borderRadius: R.lg,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+  },
+  needsText: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: S.md,
+  },
+  chev: {
+    marginLeft: S.sm,
   },
   sectionHeader: {
     marginTop: S.xl,
     marginBottom: 18,
   },
-  requestGap: {
-    marginTop: S.md,
-  },
-  chips: {
-    // The section header above already carries the 18px gap to its content.
-    marginBottom: 18,
-  },
-  workerGap: {
+  rowGap: {
     marginTop: 18,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

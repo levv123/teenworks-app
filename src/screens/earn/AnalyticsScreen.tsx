@@ -22,7 +22,7 @@ import {
   SectionHeader,
 } from '../../ui';
 import type { SheetOption } from '../../ui';
-import { HeaderAvatar } from '../../features/chrome';
+import { HeaderAvatar, useModeOnFocus } from '../../features/chrome';
 import {
   BreakdownRow,
   RatingSummaryCard,
@@ -42,6 +42,7 @@ const RANGE_OPTIONS: SheetOption<TimeRange>[] = TIME_RANGES.map(({ id, label }) 
 export function AnalyticsScreen() {
   const nav = useNavigation<Nav>();
   const { reviews, timeRange, setTimeRange } = useApp();
+  useModeOnFocus('earn');
   const earnings = useEarnings();
   const [rangeOpen, setRangeOpen] = useState(false);
 

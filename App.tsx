@@ -84,6 +84,8 @@ const linking: LinkingOptions<RootStackParamList> = {
         screens: {
           Home: '',
           Analytics: 'analytics',
+          Hire: 'hire',
+          Bookings: 'bookings',
         },
       },
 
@@ -99,9 +101,13 @@ const linking: LinkingOptions<RootStackParamList> = {
       Applications: 'applications',
       SavedGigs: 'saved',
 
-      HireHome: 'hire',
-      PostRequest: 'hire/post',
+      PostRequest: 'hire/need',
       WorkerProfile: 'hire/worker/:workerId',
+      ServiceListing: 'hire/service/:listingId',
+      BookService: 'hire/service/:listingId/book',
+      BookingDetail: 'bookings/:bookingId',
+      NeedDetail: 'hire/needs/:requestId',
+      Report: 'report/:targetType/:targetId',
     },
   },
 };
@@ -128,9 +134,15 @@ const TITLES: Record<ScreenName, string | null> = {
   Reviews: 'Reviews',
   Applications: 'Applications',
   SavedGigs: 'Saved Gigs',
-  HireHome: 'Hire',
-  PostRequest: 'Post a Request',
+  Hire: 'Hire',
+  Bookings: 'Bookings',
+  PostRequest: 'Upload a Need',
   WorkerProfile: 'Worker Profile',
+  ServiceListing: 'Service',
+  BookService: 'Book a Service',
+  BookingDetail: 'Booking',
+  NeedDetail: 'Your Need',
+  Report: 'Report',
 };
 
 /** A route we have no readable name for falls back to the brand title. */

@@ -180,6 +180,12 @@ export interface HireRequest {
   status: RequestStatus;
   applicants: number;
   postedMinutesAgo: number;
+  /** City-level area only. The exact address is never posted publicly. */
+  place?: string;
+  /** Set once the customer hires someone for this need. */
+  hiredWorkerId?: string;
+  /** The booking created when someone was hired. */
+  bookingId?: string;
 }
 
 export interface RequestDraft {
@@ -188,7 +194,99 @@ export interface RequestDraft {
   budget: number;
   when: string;
   description: string;
+  place?: string;
 }
+
+// ── Hire side: service listings and bookings ──────────────────────────────────
+
+/** A service a nearby worker offers, as the Hire side browses it. */
+export interface ServiceListing {
+  id: string;
+  workerId: string;
+  title: string;
+  category: Exclude<CategoryId, 'all'>;
+  rate: number;
+  rateType: 'fixed' | 'hourly';
+  description: string;
+  /** Short "what's included" bullets. */
+  includes: string[];
+  /** Short day labels: 'Mon' | 'Tue' | ... */
+  availability: string[];
+  place: string;
+  distanceMi: number;
+  imageUrl: string | null;
+  rating: number;
+  reviewCount: number;
+}
+
+/**
+ * requested -> waiting on the worker; confirmed -> accepted and scheduled;
+ * completed / cancelled / declined are terminal.
+ */
+export type BookingStatus =
+  | 'requested'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'declined';
+
+export type TimeSlot = 'morning' | 'afternoon' | 'evening';
+
+export interface Booking {
+  id: string;
+  /** The listing booked, or null when the booking came from hiring on a need. */
+  listingId: string | null;
+  /** The need this booking came from, when it did. */
+  requestId: string | null;
+  workerId: string;
+  title: string;
+  category: Exclude<CategoryId, 'all'>;
+  /** ISO date (yyyy-mm-dd), or null when the need only said "This week". */
+  date: string | null;
+  /** Human wording used when there is no exact date. */
+  whenLabel: string;
+  slot: TimeSlot | null;
+  /** Booked hours for hourly work; null for fixed-price jobs. */
+  hours: number | null;
+  /** Estimated total in whole dollars. */
+  total: number;
+  place: string;
+  notes: string;
+  status: BookingStatus;
+  /** ISO timestamp. */
+  createdAt: string;
+  review?: { rating: number; body: string };
+}
+
+export interface BookingDraft {
+  listingId: string;
+  date: string;
+  slot: TimeSlot;
+  hours: number | null;
+  notes: string;
+  place: string;
+}
+
+export type ReportReason =
+  | 'inappropriate'
+  | 'off-platform'
+  | 'personal-info'
+  | 'unsafe-job'
+  | 'no-show'
+  | 'payment'
+  | 'other';
+
+export interface SafetyReport {
+  id: string;
+  targetType: 'worker' | 'booking' | 'request';
+  targetId: string;
+  reason: ReportReason;
+  details: string;
+  /** ISO timestamp. */
+  createdAt: string;
+}
+
+export type BookingsSegment = 'upcoming' | 'needs' | 'past';
 
 export interface User {
   id: string;

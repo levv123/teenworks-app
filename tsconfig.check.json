@@ -14,6 +14,8 @@
     "src/navigation/routes.ts",
     "src/navigation/MainNavigator.tsx",
     "src/store/AppStore.tsx",
-    "src/utils/format.ts"
+    "src/utils/format.ts",
+    "src/utils/dates.ts",
+    "src/services/**/*"
   ]
 }

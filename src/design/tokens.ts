@@ -27,6 +27,7 @@ export const C = {
   danger: '#FF453A',
   dangerBg: 'rgba(255,69,58,0.16)',
   star: '#FF9F0A',
+  starBg: 'rgba(255,159,10,0.12)',
 } as const;
 
 export const S = {

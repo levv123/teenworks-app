@@ -52,3 +52,12 @@ export type { TextFieldProps } from './TextField';
 
 export { Toast } from './Toast';
 export type { ToastProps } from './Toast';
+
+export { ErrorBanner } from './ErrorBanner';
+export type { ErrorBannerProps } from './ErrorBanner';
+
+export { ChoiceChip } from './ChoiceChip';
+export type { ChoiceChipProps } from './ChoiceChip';
+
+export { Segmented } from './Segmented';
+export type { SegmentedProps, SegmentOption } from './Segmented';
