@@ -4,16 +4,19 @@
  * Hero photo, headline price, pills, meta rows, description and duties, with a
  * sticky Apply / save bar. A gig id that no longer resolves renders an empty
  * state instead of throwing.
+ *
+ * Apply waits for the store to confirm the application before the button reads
+ * Applied; a refusal or a failed request shows above the bar instead.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { C, R, S, TABULAR } from '../../design/tokens';
 import { CATEGORY_BY_ID } from '../../data/mock';
 import type { IoniconName } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
-import { useApp, useHasApplied, useIsSaved } from '../../store/AppStore';
+import { useApp, useApplication, useIsSaved } from '../../store/AppStore';
 import {
   AppText,
   EmptyState,
@@ -24,7 +27,7 @@ import {
   ScreenHeader,
   Stars,
 } from '../../ui';
-import { GigThumb } from '../../features/gigs';
+import { APPLICATION_STATUS_LABEL, GigThumb } from '../../features/gigs';
 import {
   formatDistance,
   formatRate,
@@ -35,11 +38,36 @@ import {
 export function GigDetailScreen() {
   const nav = useNavigation<Nav>();
   const { params } = useRoute<Route<'GigDetail'>>();
-  const { gigs, applyToGig, toggleSave } = useApp();
+  const { gigs, applyToGig, refreshApplications, toggleSave } = useApp();
 
   const gig = gigs.find((candidate) => candidate.id === params.gigId) ?? null;
-  const applied = useHasApplied(params.gigId);
+  const application = useApplication(params.gigId);
   const saved = useIsSaved(params.gigId);
+
+  // Both carry the gig they belong to: a deep link can hand this same screen a
+  // different gig, which must not inherit the last one's spinner or message.
+  const [applyingFor, setApplyingFor] = useState<string | null>(null);
+  const [applyError, setApplyError] = useState<{ gigId: string; message: string } | null>(
+    null,
+  );
+  // A repeat tap needs no guard here: the store hands back the request already
+  // in flight for this gig instead of sending another.
+  const apply = useCallback(async () => {
+    const gigId = params.gigId;
+    setApplyingFor(gigId);
+    setApplyError(null);
+    const result = await applyToGig(gigId);
+    setApplyingFor((current) => (current === gigId ? null : current));
+    if (result.status === 'failed') setApplyError({ gigId, message: result.message });
+  }, [applyToGig, params.gigId]);
+
+  // A recorded application may have been accepted or declined since.
+  const hasApplication = application !== null;
+  useFocusEffect(
+    useCallback(() => {
+      if (hasApplication) void refreshApplications();
+    }, [hasApplication, refreshApplications]),
+  );
 
   const goBack = useCallback(() => nav.goBack(), [nav]);
   const header = <ScreenHeader title="Gig Detail" onBack={goBack} />;
@@ -66,6 +94,8 @@ export function GigDetailScreen() {
     (tag) => tag.toLowerCase() !== scheduleLabel.toLowerCase(),
   );
 
+  const errorMessage = applyError?.gigId === gig.id ? applyError.message : null;
+
   const metaRows: { icon: IoniconName; text: string }[] = [
     {
       icon: 'location-outline',
@@ -88,22 +118,36 @@ export function GigDetailScreen() {
     <Screen
       header={header}
       footer={
-        <View style={styles.footer}>
-          <IconButton
-            icon={saved ? 'bookmark' : 'bookmark-outline'}
-            variant="surface"
-            color={saved ? C.text : C.textMuted}
-            onPress={() => toggleSave(gig.id)}
-            accessibilityLabel={saved ? `Unsave ${gig.title}` : `Save ${gig.title}`}
-          />
-          <View style={styles.applyWrap}>
-            <PrimaryButton
-              label={applied ? 'Applied' : 'Apply'}
-              onPress={() => applyToGig(gig.id)}
-              disabled={applied}
+        <>
+          {errorMessage ? (
+            <AppText
+              variant="small"
+              // A sample gig can't take applications: a known limit, not a failure.
+              color={gig.remote === undefined ? C.textMuted : C.danger}
+              accessibilityLiveRegion="polite"
+              style={styles.footerNote}
+            >
+              {errorMessage}
+            </AppText>
+          ) : null}
+          <View style={styles.footer}>
+            <IconButton
+              icon={saved ? 'bookmark' : 'bookmark-outline'}
+              variant="surface"
+              color={saved ? C.text : C.textMuted}
+              onPress={() => toggleSave(gig.id)}
+              accessibilityLabel={saved ? `Unsave ${gig.title}` : `Save ${gig.title}`}
             />
+            <View style={styles.applyWrap}>
+              <PrimaryButton
+                label={application ? APPLICATION_STATUS_LABEL[application.status] : 'Apply'}
+                onPress={() => void apply()}
+                disabled={application !== null}
+                loading={applyingFor === gig.id}
+              />
+            </View>
           </View>
-        </View>
+        </>
       }
     >
       <GigThumb gig={gig} size={200} radius={R.xl} style={styles.hero} />
@@ -272,6 +316,10 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  footerNote: {
+    marginBottom: S.md,
+    textAlign: 'center',
   },
   applyWrap: {
     flex: 1,

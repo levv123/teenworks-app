@@ -10,6 +10,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import type { ListRenderItemInfo } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { GUTTER, S } from '../../design/tokens';
+import { CATEGORIES } from '../../data/mock';
 import type { CategoryId, Gig, GigSort } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
 import { useApp, useVisibleGigs } from '../../store/AppStore';
@@ -31,8 +32,15 @@ export function GigsScreen() {
   useEffect(() => {
     if (seeded.current) return;
     seeded.current = true;
-    if (paramCategory !== undefined) setCategory(paramCategory);
+    // A deep link can carry anything; only a category a chip can show applies.
+    const known = CATEGORIES.find((chip) => chip.id === paramCategory);
+    if (known !== undefined) setCategory(known.id);
   }, [paramCategory, setCategory]);
+
+  // The search box only exists here, so the search leaves with it. Home has no
+  // field to show or clear it, and would otherwise filter its feed by text the
+  // user can no longer see. Category and sort stay, since Home shows the first.
+  useEffect(() => () => setQuery(''), [setQuery]);
 
   const openGig = useCallback(
     (gigId: string) => nav.navigate('GigDetail', { gigId }),

@@ -2,11 +2,12 @@
  * Applications (spec 6) — every gig the user applied to, newest first, each with
  * the status the poster gave it. Applications are stored by gig id, so any whose
  * gig has since left the catalogue are counted and skipped rather than rendered
- * as an empty row.
+ * as an empty row. Withdraw cancels the booking behind the application and only
+ * drops the row once that is confirmed.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { C, S } from '../../design/tokens';
 import type { Application, ApplicationStatus, Gig } from '../../data/types';
 import type { PillTone } from '../../ui';
@@ -20,12 +21,12 @@ import {
   ScreenHeader,
   SecondaryButton,
 } from '../../ui';
-import { GigCard } from '../../features/gigs';
+import { APPLICATION_STATUS_LABEL, GigCard } from '../../features/gigs';
 
-const STATUS: Record<ApplicationStatus, { label: string; tone: PillTone }> = {
-  applied: { label: 'Applied', tone: 'neutral' },
-  accepted: { label: 'Accepted', tone: 'success' },
-  declined: { label: 'Declined', tone: 'danger' },
+const STATUS_TONE: Record<ApplicationStatus, PillTone> = {
+  applied: 'neutral',
+  accepted: 'success',
+  declined: 'danger',
 };
 
 /** An application that still points at a gig we can render. */
@@ -33,8 +34,17 @@ type ResolvedApplication = Application & { gig: Gig };
 
 export function ApplicationsScreen() {
   const nav = useNavigation<Nav>();
-  const { withdrawApplication, showToast } = useApp();
+  const { refreshApplications, withdrawApplication, showToast } = useApp();
   const entries = useApplications();
+  // Gig ids whose withdrawal is still waiting on the server.
+  const [withdrawing, setWithdrawing] = useState<string[]>([]);
+
+  // Statuses are the poster's to change, so re-read them whenever this opens.
+  useFocusEffect(
+    useCallback(() => {
+      void refreshApplications();
+    }, [refreshApplications]),
+  );
 
   const { resolved, missing } = useMemo(() => {
     const rows: ResolvedApplication[] = [];
@@ -50,9 +60,11 @@ export function ApplicationsScreen() {
   }, [entries]);
 
   const withdraw = useCallback(
-    (gig: Gig) => {
-      withdrawApplication(gig.id);
-      showToast(`Withdrew from ${gig.title}`);
+    async (gig: Gig) => {
+      setWithdrawing((ids) => (ids.includes(gig.id) ? ids : [...ids, gig.id]));
+      const result = await withdrawApplication(gig.id);
+      setWithdrawing((ids) => ids.filter((id) => id !== gig.id));
+      showToast(result.status === 'done' ? `Withdrew from ${gig.title}` : result.message);
     },
     [showToast, withdrawApplication],
   );
@@ -71,7 +83,7 @@ export function ApplicationsScreen() {
         />
       ) : (
         resolved.map((application, index) => {
-          const status = STATUS[application.status];
+          const pending = withdrawing.includes(application.gigId);
           return (
             <View
               key={application.gigId}
@@ -84,17 +96,18 @@ export function ApplicationsScreen() {
                 }
                 right={
                   <Pill
-                    label={status.label}
-                    tone={status.tone}
+                    label={APPLICATION_STATUS_LABEL[application.status]}
+                    tone={STATUS_TONE[application.status]}
                     style={styles.status}
                   />
                 }
               />
               {application.status === 'applied' ? (
                 <SecondaryButton
-                  label="Withdraw"
+                  label={pending ? 'Withdrawing…' : 'Withdraw'}
                   size="sm"
-                  onPress={() => withdraw(application.gig)}
+                  onPress={() => void withdraw(application.gig)}
+                  disabled={pending}
                   style={styles.withdraw}
                 />
               ) : null}

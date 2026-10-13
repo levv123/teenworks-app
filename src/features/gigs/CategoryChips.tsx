@@ -22,7 +22,7 @@ import { AppText } from '../../ui';
 const CHIP = 74;
 
 /** Home shows the first five; the full filter passes all eight. */
-const DEFAULT_CATEGORIES = CATEGORIES.slice(0, 5);
+export const HOME_CATEGORIES = CATEGORIES.slice(0, 5);
 
 export interface CategoryChipsProps {
   selected: CategoryId;
@@ -34,7 +34,7 @@ export interface CategoryChipsProps {
 export function CategoryChips({
   selected,
   onSelect,
-  categories = DEFAULT_CATEGORIES,
+  categories = HOME_CATEGORIES,
   style,
 }: CategoryChipsProps) {
   return (

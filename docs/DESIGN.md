@@ -102,13 +102,17 @@ Vertical order, 20px gutter, scrollable, black background.
    then a two-line stack: `Near you` (`bodyBold`, white) / `Surfside, FL • 3 mi`
    (`small`, `textMuted`). Right: **Change** button — `surfaceAlt`, 1px `border`,
    `R.full`, padding `10x18`, label `body`/white. Tapping → `LocationPicker`.
+   When the saved place is not `DISTANCE_ORIGIN` (Surfside, FL), a `small` `textMuted`
+   line 8px below, aligned with the text, says the distances are measured from there
+   (`distanceNoteFor`; part of `LocationBar`, so Hire Home shows it too).
 4. **Category chip row** — horizontal `ScrollView`, `showsHorizontalScrollIndicator=false`,
    8px between chips, first chip flush with the gutter, `contentContainerStyle` padded so
    the last chip can scroll clear of the right edge.
    - Chip: width 74, height 74, `R.lg`, centered icon (22) above label (`tiny`),
      6px gap. Inactive: `surfaceAlt` bg, 1px `border`, icon tinted with the category
      color, label white. Active: `#FFFFFF` bg, no border, icon + label `onLight`.
-   - Selecting a chip filters the gig feed. `all` clears the filter.
+   - Selecting a chip filters the gig feed. `all` clears the filter. A category set on
+     `Gigs` that Home has no chip for joins the row after `All` while it is active.
 5. **Section header** — `Find Your Next Gig` (`h2`, white) left, `See all ›` right
    (`small`, `textMuted`, chevron-forward 14). Tapping → `Gigs` (full list).
 6. **Gig list** — up to 4 `GigCard` rows, 18px apart. Rows are **borderless** — no card
@@ -207,16 +211,16 @@ title (`h2`) and an optional right slot; 8px below the safe area, 20px gutter.
 
 | Screen | Route | Reached from | Contents |
 |---|---|---|---|
-| All Gigs | `Gigs` | "See all" on Home | Search field, horizontal category filter, sort control (Newest / Closest / Highest Pay), full `GigCard` list, result count, empty state. |
-| Gig Detail | `GigDetail` | any `GigCard` | Hero image 200px, title + price, category/tag pills, meta rows (location + distance, posted, schedule type, poster name + rating), description, "What you'll do" bullets, sticky bottom bar: **Apply** (white CTA) + save (bookmark) icon button. Applying sets the gig to `applied` and shows a toast; the CTA then reads "Applied" and is disabled. |
+| All Gigs | `Gigs` | "See all" on Home | Search field, horizontal category filter, sort control (Newest / Closest / Highest Pay), full `GigCard` list, result count, empty state. Category and sort are shared with Home; the search clears on leaving, since Home cannot show it. |
+| Gig Detail | `GigDetail` | any `GigCard` | Hero image 200px, title + price, category/tag pills, meta rows (location + distance, posted, schedule type, poster name + rating), description, "What you'll do" bullets, sticky bottom bar: **Apply** (white CTA) + save (bookmark) icon button. Apply records a pending `bookings` row against the gig's open `service_requests` row (`src/features/gigs/apply.ts`) and only once Supabase confirms it shows a toast and reads **Applied** (or the poster's Accepted / Declined), disabled. A spinner shows while the request is out; a refusal or failure shows above the bar and the CTA stays Apply. Seeded gigs have no request behind them, so Apply says so instead of sending. |
 | Post a Service | `PostService` | white CTA / My Services | Three steps on one route with a `1 — 2 — 3` indicator (Category, Details, Preview). **1** a 4×2 grid of category tiles (the Home chip style; the last tile, **More**, files under *Other*). **2** photos first (up to 5, the first is the cover), then title, description, whole-dollar price + Hourly / Fixed, duration (Under 1 hour / 1–2 / 2–4 / 4+ hours), location, availability day toggles. **3** the listing as a customer sees it (Gig Detail's hero, title + price, meta rows), with **Edit** and **Post Service**. Every step's button stays enabled; pressing it with gaps shows the inline errors plus a one-line summary. Back, Edit and the step dots keep everything entered. Signed in to Supabase it saves through `src/api/serviceDraft.ts`; otherwise to the store, and the preview says so. Ends on My Services with a toast. With a `serviceId` it edits that service, opening on step 2. |
 | My Services | `MyServices` | Profile / after posting | List of services the user offers with edit + pause/activate; empty state if none. |
 | Past Jobs | `PastJobs` | header link | Completed jobs grouped newest-first: title, client, date, payout, rating stars; header summary of total earned + jobs count. |
 | Profile | `Profile` | avatar | Avatar + name + `@handle`, trust score card (score 0–100 with progress + level label), verification badges, stat row (jobs, rating, response time), links: My Services, Past Jobs, Saved Gigs, Applications, Switch to Hiring, Settings. |
-| Location Picker | `LocationPicker` | "Change" | Search field + list of nearby cities with distance; a radius slider row (1/3/5/10/25 mi) as chips; selecting updates the Home location bar and re-filters gigs by distance. |
+| Location Picker | `LocationPicker` | "Change" | Search field + list of nearby cities with distance; a radius slider row (1/3/5/10/25 mi) as chips. Place and radius are a draft until **Save**, which updates the Home location bar and re-filters gigs by radius; Back discards. Seeded distances are fixed from Surfside, FL (`DISTANCE_ORIGIN`); when another place is picked or saved, a muted line in the picker and under the location bar says so (`distanceNoteFor`). |
 | Earnings Breakdown | `EarningsBreakdown` | "See all" | Every category with amount, %, job count and a bar; totals header. |
 | Reviews | `Reviews` | "See all" | Rating summary (average, count, 5→1 distribution bars) and the full review list (avatar, name, role, stars, date, body). |
-| Applications | `Applications` | Profile | Gigs the user applied to, with status pill (Applied / Accepted / Declined). |
+| Applications | `Applications` | Profile | Gigs the user applied to, with status pill (Applied / Accepted / Declined). Statuses are re-read from Supabase whenever Applications or an applied Gig Detail opens. Withdraw cancels the booking only while it is still pending and drops the row once that is confirmed; if the poster answered first, the row shows that answer instead. |
 | Saved Gigs | `SavedGigs` | Profile | Saved gigs, unsave from the row, empty state. |
 
 ### 6.1 Hire side — `HireHomeScreen` (`HireHome`) + `PostRequest`
@@ -270,7 +274,10 @@ type AppState = {
 
 type AppActions = {
   setMode, setCategory, setQuery, setSort, setTimeRange, setLocation, setRadius,
-  toggleSave(gigId), applyToGig(gigId, note?), withdrawApplication(gigId),
+  toggleSave(gigId),
+  applyToGig(gigId, note?): Promise<SubmitResult>,      // confirmed by Supabase
+  withdrawApplication(gigId): Promise<SubmitResult>,    // likewise
+  refreshApplications(): Promise<void>,                 // re-reads statuses
   postService(draft), updateService(id, patch), toggleServiceActive(id),
   postRequest(draft), showToast(msg), dismissToast,
 };
@@ -282,6 +289,8 @@ useSavedGigs(), useApplications(), useIsSaved(id), useHasApplied(id)
 ```
 State is in-memory with `AsyncStorage` persistence for `savedIds`, `applications`,
 `services`, `requests`, `location`, `radiusMi` under the key `teenworks.v1`.
+Applications enter state only once their booking exists in Supabase, and carry its
+`bookingId`; stored ones without one were never sent and are dropped on load.
 Hydration must never block the first paint and must be wrapped in try/catch — a
 storage failure is a no-op, not a crash.
 

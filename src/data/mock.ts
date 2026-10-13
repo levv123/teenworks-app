@@ -956,6 +956,14 @@ export const NEARBY_PLACES: Place[] = [
   { id: 'p8', label: 'North Miami Beach, FL', distanceMi: 5.8 },
 ];
 
+/**
+ * Every seeded distance — the gigs' and the places' above — is measured from
+ * here. The seed has no coordinates, so choosing another place can't re-measure
+ * them.
+ */
+export const DISTANCE_ORIGIN: Place =
+  NEARBY_PLACES.find((place) => place.distanceMi === 0) ?? NEARBY_PLACES[0];
+
 // ── Hire side ─────────────────────────────────────────────────────────────────
 
 export const WORKERS: Worker[] = [

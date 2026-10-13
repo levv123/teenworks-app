@@ -143,6 +143,76 @@ export async function createBooking(
   return data as Booking;
 }
 
+/**
+ * One provider's bookings on one request, newest first — how Apply finds an
+ * application that already exists before it creates another.
+ */
+export async function getProviderBookingsForRequest(
+  requestId: string,
+  providerId: string,
+): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('request_id', requestId)
+    .eq('provider_id', providerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Booking[];
+}
+
+/** One provider's bookings by id — how the Applications screen re-reads statuses. */
+export async function getProviderBookingsByIds(
+  ids: string[],
+  providerId: string,
+): Promise<Booking[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .in('id', ids)
+    .eq('provider_id', providerId);
+  if (error) throw error;
+  return (data ?? []) as Booking[];
+}
+
+/**
+ * Withdraws an application: cancels the booking only while it is still pending,
+ * so a job the poster has already accepted can't be cancelled from a stale
+ * screen. Resolves null when nothing pending matched.
+ */
+export async function withdrawPendingBooking(
+  bookingId: string,
+  providerId: string,
+): Promise<Booking | null> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('id', bookingId)
+    .eq('provider_id', providerId)
+    .eq('status', 'pending')
+    .select();
+  if (error) throw error;
+  return ((data ?? []) as Booking[])[0] ?? null;
+}
+
+/**
+ * A request's status, or null when this user can't see it (RLS shows other
+ * people's requests only while they are open). Lives here rather than in
+ * requests.ts, which loads expo-image-picker as soon as it is imported.
+ */
+export async function getRequestStatus(
+  requestId: string,
+): Promise<ServiceRequest['status'] | null> {
+  const { data, error } = await supabase
+    .from('service_requests')
+    .select('status')
+    .eq('id', requestId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Pick<ServiceRequest, 'status'> | null)?.status ?? null;
+}
+
 export async function getBookingById(id: string) {
   const { data, error } = await supabase
     .from('bookings')

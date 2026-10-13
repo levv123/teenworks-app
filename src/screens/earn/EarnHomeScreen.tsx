@@ -5,15 +5,21 @@
  * the "Post a Service" CTA. Rendered unpadded so the chip row can scroll
  * full-bleed; every other block opts into the gutter explicitly.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C, GUTTER, S } from '../../design/tokens';
+import { CATEGORIES } from '../../data/mock';
 import type { CategoryId } from '../../data/types';
 import type { Nav } from '../../navigation/routes';
 import { useApp, useVisibleGigs } from '../../store/AppStore';
 import { AppText, EmptyState, PrimaryButton, Screen, SectionHeader } from '../../ui';
-import { CategoryChips, GigCard, LocationBar } from '../../features/gigs';
+import {
+  CategoryChips,
+  GigCard,
+  HOME_CATEGORIES,
+  LocationBar,
+} from '../../features/gigs';
 import { HeaderAvatar } from '../../features/chrome';
 
 /** The feed teaser; the full list lives behind "See all". */
@@ -24,6 +30,16 @@ export function EarnHomeScreen() {
   const { category, location, radiusMi, setCategory } = useApp();
   const visible = useVisibleGigs();
   const feed = visible.slice(0, FEED_LIMIT);
+
+  // Find Gigs can filter by a category Home has no chip for. That chip joins
+  // the row, next to All, so the filter on the feed below is always the one
+  // shown selected — and one tap on All still clears it.
+  const chips = useMemo(() => {
+    if (HOME_CATEGORIES.some((chip) => chip.id === category)) return HOME_CATEGORIES;
+    const active = CATEGORIES.find((chip) => chip.id === category);
+    if (active === undefined) return HOME_CATEGORIES;
+    return [HOME_CATEGORIES[0], active, ...HOME_CATEGORIES.slice(1)];
+  }, [category]);
 
   const openGig = useCallback(
     (gigId: string) => nav.navigate('GigDetail', { gigId }),
@@ -77,6 +93,7 @@ export function EarnHomeScreen() {
       <CategoryChips
         selected={category}
         onSelect={selectCategory}
+        categories={chips}
         style={styles.chips}
       />
 

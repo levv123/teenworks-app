@@ -10,7 +10,7 @@ import { StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { C, S } from '../../design/tokens';
 import type { TimeRange } from '../../data/types';
-import { REVIEW_COUNT, TIME_RANGES } from '../../data/mock';
+import { LIFETIME_RATING, REVIEW_COUNT, TIME_RANGES } from '../../data/mock';
 import type { Nav } from '../../navigation/routes';
 import { useApp, useEarnings } from '../../store/AppStore';
 import {
@@ -125,8 +125,10 @@ export function AnalyticsScreen() {
       />
 
       <View style={styles.reviewRow}>
+        {/* Every review, so the lifetime average beside the lifetime count — the
+            pair Reviews opens on. The range's average is the Avg. Rating tile. */}
         <RatingSummaryCard
-          rating={earnings.avgRating}
+          rating={LIFETIME_RATING}
           count={REVIEW_COUNT}
           style={featured === null ? styles.soloCard : styles.ratingCard}
         />

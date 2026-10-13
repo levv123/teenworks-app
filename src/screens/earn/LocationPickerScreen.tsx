@@ -1,9 +1,10 @@
 /**
  * Location Picker (spec 6) — where the user is searching from and how far out.
- * Picking a place writes it straight to the store and pops back, so the Home
- * location bar and the gig feed are already updated when the screen closes.
+ * The place and radius picked here are a draft: Save writes both to the store
+ * and pops back to Home, which re-filters the feed; Back leaves the store as it
+ * was.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,27 +13,37 @@ import type { Place } from '../../data/types';
 import { NEARBY_PLACES } from '../../data/mock';
 import type { Nav } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
+import type { AppLocation } from '../../store/AppStore';
 import {
   AppText,
   Divider,
   EmptyState,
+  PrimaryButton,
   Screen,
   ScreenHeader,
   SearchField,
 } from '../../ui';
+import { distanceNoteFor } from '../../features/gigs';
 import { formatDistance } from '../../utils/format';
 
 const RADII = [1, 3, 5, 10, 25];
 
-/** Where "my current location" resolves to in the seeded world. */
-const CURRENT_PLACE: Place = NEARBY_PLACES.find(
-  (place) => place.label === 'Surfside, FL',
-) ?? { id: 'here', label: 'Surfside, FL', distanceMi: 0 };
-
 export function LocationPickerScreen() {
   const nav = useNavigation<Nav>();
-  const { location, radiusMi, setLocation, setRadius, showToast } = useApp();
+  const { location, radiusMi, setLocation, setRadius } = useApp();
   const [search, setSearch] = useState('');
+
+  const [draftLocation, setDraftLocation] = useState<AppLocation>(location);
+  const [draftRadius, setDraftRadius] = useState(radiusMi);
+
+  // Opened before the stored location finished loading (a cold deep link), the
+  // draft follows the store until the user picks something themselves.
+  const touched = useRef(false);
+  useEffect(() => {
+    if (touched.current) return;
+    setDraftLocation(location);
+    setDraftRadius(radiusMi);
+  }, [location, radiusMi]);
 
   const places = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -42,21 +53,43 @@ export function LocationPickerScreen() {
     );
   }, [search]);
 
-  const choose = useCallback(
-    (place: Place) => {
-      setLocation({ label: place.label, distanceMi: place.distanceMi });
-      nav.goBack();
-    },
-    [nav, setLocation],
-  );
+  const pickPlace = useCallback((place: Place) => {
+    touched.current = true;
+    setDraftLocation({ label: place.label, distanceMi: place.distanceMi });
+  }, []);
 
-  const useCurrent = useCallback(() => {
-    choose(CURRENT_PLACE);
-    showToast('Using your current location');
-  }, [choose, showToast]);
+  const pickRadius = useCallback((miles: number) => {
+    touched.current = true;
+    setDraftRadius(miles);
+  }, []);
+
+  const save = useCallback(() => {
+    setLocation(draftLocation);
+    setRadius(draftRadius);
+    nav.goBack();
+  }, [draftLocation, draftRadius, nav, setLocation, setRadius]);
+
+  const distanceNote = distanceNoteFor(draftLocation.label);
 
   return (
-    <Screen header={<ScreenHeader title="Location" onBack={() => nav.goBack()} />}>
+    <Screen
+      header={<ScreenHeader title="Location" onBack={() => nav.goBack()} />}
+      footer={
+        <>
+          {distanceNote ? (
+            <AppText
+              variant="small"
+              color={C.textMuted}
+              accessibilityLiveRegion="polite"
+              style={styles.footerNote}
+            >
+              {distanceNote}
+            </AppText>
+          ) : null}
+          <PrimaryButton label="Save" onPress={save} />
+        </>
+      }
+    >
       <SearchField
         value={search}
         onChangeText={setSearch}
@@ -67,12 +100,12 @@ export function LocationPickerScreen() {
         Search radius
       </AppText>
       <View style={styles.chips}>
-        {RADII.map((miles, index) => {
-          const active = miles === radiusMi;
+        {RADII.map((miles) => {
+          const active = miles === draftRadius;
           return (
             <Pressable
               key={miles}
-              onPress={() => setRadius(miles)}
+              onPress={() => pickRadius(miles)}
               accessibilityRole="button"
               accessibilityLabel={`Search within ${formatDistance(miles)}`}
               accessibilityState={{ selected: active }}
@@ -94,18 +127,6 @@ export function LocationPickerScreen() {
         })}
       </View>
 
-      <Pressable
-        onPress={useCurrent}
-        accessibilityRole="button"
-        accessibilityLabel="Use my current location"
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-      >
-        <Ionicons name="navigate-outline" size={18} color={C.text} />
-        <AppText variant="body" numberOfLines={1} style={styles.rowLabel}>
-          Use my current location
-        </AppText>
-      </Pressable>
-
       <Divider style={styles.divider} />
 
       {places.length === 0 ? (
@@ -118,12 +139,12 @@ export function LocationPickerScreen() {
         />
       ) : (
         places.map((place, index) => {
-          const selected = place.label === location.label;
+          const selected = place.label === draftLocation.label;
           return (
             <View key={place.id}>
               {index > 0 ? <Divider inset={S.huge - 2} /> : null}
               <Pressable
-                onPress={() => choose(place)}
+                onPress={() => pickPlace(place)}
                 accessibilityRole="button"
                 accessibilityLabel={`${place.label}, ${formatDistance(place.distanceMi)}`}
                 accessibilityState={{ selected }}
@@ -193,7 +214,14 @@ const styles = StyleSheet.create({
     marginLeft: S.sm,
   },
   divider: {
+    // The chips keep their own 8px bottom margin; this tops it up to the
+    // section gap the list sat at before.
+    marginTop: S.md,
     marginBottom: S.xs,
+  },
+  footerNote: {
+    marginBottom: S.md,
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.6,

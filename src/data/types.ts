@@ -57,14 +57,29 @@ export interface Gig {
     rating: number;
     jobsPosted: number;
   };
+  /**
+   * The service_requests row behind the gig. Only a gig mapped from that table
+   * has one, and only such a gig can take an application; the seeded gigs have
+   * no poster to send one to.
+   */
+  remote?: GigRemote;
+}
+
+export interface GigRemote {
+  /** service_requests.id */
+  requestId: string;
+  /** service_requests.client_id: the auth user who posted the request. */
+  clientId: string;
 }
 
 export type ApplicationStatus = 'applied' | 'accepted' | 'declined';
 
 export interface Application {
   gigId: string;
+  /** The pending bookings row that records the application in Supabase. */
+  bookingId: string;
   status: ApplicationStatus;
-  /** ISO string — set when the application was created. */
+  /** ISO string — when the booking row was created. */
   appliedAt: string;
   note?: string;
 }
