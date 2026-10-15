@@ -12,11 +12,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { C, S, T } from './src/design/tokens';
 import { AppProvider } from './src/store/AppStore';
+import { SessionProvider } from './src/store/SessionStore';
 import { MainNavigator, navTheme } from './src/navigation/MainNavigator';
 import type { RootStackParamList, TabParamList } from './src/navigation/routes';
 
-// src/store/AuthContext and src/navigation/RootNavigator are deliberately no longer
-// mounted here: they belong to the Supabase layer a later chapter will pick back up.
+// src/store/AuthContext and src/navigation/RootNavigator belong to the older app
+// and stay unmounted: SessionProvider is the sign-in session now, and signing in
+// is optional, so there is no auth gate in front of the navigator.
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 // Catches any synchronous render-time crash and shows a readable screen
@@ -102,6 +104,8 @@ const linking: LinkingOptions<RootStackParamList> = {
       HireHome: 'hire',
       PostRequest: 'hire/post',
       WorkerProfile: 'hire/worker/:workerId',
+
+      SignIn: 'sign-in',
     },
   },
 };
@@ -131,6 +135,7 @@ const TITLES: Record<ScreenName, string | null> = {
   HireHome: 'Hire',
   PostRequest: 'Post a Request',
   WorkerProfile: 'Worker Profile',
+  SignIn: 'Sign In',
 };
 
 /** A route we have no readable name for falls back to the brand title. */
@@ -146,26 +151,28 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <AppProvider>
-          <NavigationContainer
-            theme={navTheme}
-            linking={linking}
-            documentTitle={{
-              formatter: (options, route) => {
-                const explicit = options?.title;
-                // A screen that sets its own `title` option wins; otherwise the
-                // route name is looked up, so we never print 'undefined — TeenWorks'.
-                if (typeof explicit === 'string' && explicit.length > 0) {
-                  return `${explicit} — TeenWorks`;
-                }
-                return titleFor(route?.name);
-              },
-            }}
-          >
-            <StatusBar style="light" />
-            <MainNavigator />
-          </NavigationContainer>
-        </AppProvider>
+        <SessionProvider>
+          <AppProvider>
+            <NavigationContainer
+              theme={navTheme}
+              linking={linking}
+              documentTitle={{
+                formatter: (options, route) => {
+                  const explicit = options?.title;
+                  // A screen that sets its own `title` option wins; otherwise the
+                  // route name is looked up, so we never print 'undefined — TeenWorks'.
+                  if (typeof explicit === 'string' && explicit.length > 0) {
+                    return `${explicit} — TeenWorks`;
+                  }
+                  return titleFor(route?.name);
+                },
+              }}
+            >
+              <StatusBar style="light" />
+              <MainNavigator />
+            </NavigationContainer>
+          </AppProvider>
+        </SessionProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );

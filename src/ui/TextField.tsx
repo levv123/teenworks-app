@@ -25,6 +25,10 @@ export interface TextFieldProps {
   prefix?: string;
   maxLength?: number;
   autoCapitalize?: TextInputProps['autoCapitalize'];
+  /** Hides the characters, for passwords. */
+  secureTextEntry?: boolean;
+  /** Lets the browser or OS offer saved emails and passwords. */
+  autoComplete?: TextInputProps['autoComplete'];
   editable?: boolean;
   onSubmitEditing?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -44,6 +48,8 @@ export function TextField({
   prefix,
   maxLength,
   autoCapitalize = 'sentences',
+  secureTextEntry,
+  autoComplete,
   editable = true,
   onSubmitEditing,
   style,
@@ -79,6 +85,8 @@ export function TextField({
           keyboardType={keyboardType}
           maxLength={maxLength}
           autoCapitalize={autoCapitalize}
+          secureTextEntry={secureTextEntry}
+          autoComplete={autoComplete}
           editable={editable}
           onSubmitEditing={onSubmitEditing}
           onFocus={() => setFocused(true)}

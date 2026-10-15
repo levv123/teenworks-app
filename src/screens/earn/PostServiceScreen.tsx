@@ -13,13 +13,14 @@
  * has always done, and the preview says so before the user posts.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { C, S } from '../../design/tokens';
 import type { Service, ServiceDraft } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
+import { useSession } from '../../store/SessionStore';
 import { PhotoPermissionError, pickServiceImages } from '../../api/services';
 import { AppText, PrimaryButton, Screen, ScreenHeader, SecondaryButton } from '../../ui';
 import {
@@ -111,11 +112,14 @@ export function PostServiceScreen() {
     [],
   );
 
+  // Re-read whenever the session changes, e.g. after signing in from the preview.
+  const sessionStatus = useSession().status;
   useEffect(() => {
+    if (sessionStatus === 'loading') return;
     void signedInUserId().then((id) => {
       if (mounted.current) setSignedIn(id !== null);
     });
-  }, []);
+  }, [sessionStatus]);
 
   // ── Edit target arriving late ───────────────────────────────────────────────
   // The store loads saved services after the first render, so a reload on an
@@ -473,6 +477,15 @@ export function PostServiceScreen() {
             {saveNote}
           </AppText>
         ) : null}
+        {signedIn === false && !posting ? (
+          <Pressable
+            onPress={() => nav.navigate('SignIn')}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.signInLink, pressed && styles.pressed]}
+          >
+            <AppText variant="bodyBold">Sign in to save it to your account</AppText>
+          </Pressable>
+        ) : null}
         <View style={styles.actions}>
           <SecondaryButton
             label="Edit"
@@ -511,6 +524,15 @@ const styles = StyleSheet.create({
   footerNote: {
     marginBottom: S.md,
     textAlign: 'center',
+  },
+  signInLink: {
+    alignSelf: 'center',
+    marginTop: -S.xs,
+    marginBottom: S.md,
+    paddingVertical: S.xs,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   caption: {
     flexDirection: 'row',

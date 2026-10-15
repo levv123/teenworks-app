@@ -11,6 +11,7 @@ import { C, R, S, TABULAR } from '../../design/tokens';
 import type { IoniconName } from '../../data/types';
 import type { Nav } from '../../navigation/routes';
 import { useApp } from '../../store/AppStore';
+import { useSession } from '../../store/SessionStore';
 import {
   AppText,
   Avatar,
@@ -18,6 +19,7 @@ import {
   Divider,
   ProgressBar,
   Pill,
+  PrimaryButton,
   Screen,
   ScreenHeader,
   SecondaryButton,
@@ -39,6 +41,12 @@ interface LinkRow {
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
   const { user, pastJobs, savedIds, applications, setMode, showToast } = useApp();
+  const session = useSession();
+
+  const signOut = useCallback(async () => {
+    await session.signOut();
+    showToast('Signed out');
+  }, [session, showToast]);
 
   // The profile rating is the average of what clients actually paid for, so it
   // stays put while the Analytics range changes.
@@ -134,6 +142,40 @@ export function ProfileScreen() {
           </View>
         </View>
       </View>
+
+      {session.status === 'signed-in' ? (
+        <Card style={styles.card}>
+          <AppText variant="small" color={C.textMuted}>
+            Signed in as
+          </AppText>
+          <View style={styles.accountRow}>
+            <AppText variant="bodyBold" numberOfLines={1} style={styles.accountEmail}>
+              {session.email ?? 'your account'}
+            </AppText>
+            <SecondaryButton label="Sign out" size="sm" onPress={signOut} />
+          </View>
+        </Card>
+      ) : session.status === 'signed-out' ? (
+        <Card style={styles.card}>
+          <AppText variant="h3">Sign in to TeenWorks</AppText>
+          <AppText variant="small" color={C.textMuted} style={styles.hint}>
+            Save your services to your account and apply to gigs. Without an account,
+            everything stays on this device.
+          </AppText>
+          <PrimaryButton
+            label="Sign in"
+            onPress={() => nav.navigate('SignIn')}
+            style={styles.accountCta}
+          />
+          <Pressable
+            onPress={() => nav.navigate('SignIn', { mode: 'sign-up' })}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.accountLink, pressed && styles.pressed]}
+          >
+            <AppText variant="bodyBold">Create an account</AppText>
+          </Pressable>
+        </Card>
+      ) : null}
 
       <Card style={styles.card}>
         <View style={styles.cardHead}>
@@ -288,6 +330,24 @@ const styles = StyleSheet.create({
   },
   card: {
     marginTop: S.xl,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: S.xs,
+  },
+  accountEmail: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: S.md,
+  },
+  accountCta: {
+    marginTop: S.base,
+  },
+  accountLink: {
+    alignSelf: 'center',
+    marginTop: S.md,
+    paddingVertical: S.xs,
   },
   cardHead: {
     flexDirection: 'row',
