@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
@@ -18,7 +19,9 @@ export const supabase = createClient(safeUrl, safeKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // On web, the email confirmation link lands back on the site carrying the
+    // session, so reading it from the URL signs the new user straight in.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 

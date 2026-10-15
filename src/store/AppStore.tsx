@@ -118,7 +118,10 @@ export interface AppActions {
 export type AppContextValue = AppState & AppActions;
 
 /** How an Apply or Withdraw ended. */
-export type SubmitResult = { status: 'done' } | { status: 'failed'; message: string };
+export type SubmitResult =
+  | { status: 'done' }
+  /** signedOut marks a failure that signing in would fix. */
+  | { status: 'failed'; message: string; signedOut?: boolean };
 
 /** An application joined to the gig it points at, for the Applications screen. */
 export type ApplicationEntry = Application & { gig: Gig | null };
@@ -524,7 +527,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             showToast(existing ? "You've already applied to this gig" : 'Application sent');
             return { status: 'done' };
           } catch (err) {
-            if (err instanceof ApplyError) return { status: 'failed', message: err.message };
+            if (err instanceof ApplyError) {
+              return {
+                status: 'failed',
+                message: err.message,
+                signedOut: err.code === 'signed-out',
+              };
+            }
             console.error('[TeenWorks] Apply failed:', err);
             return { status: 'failed', message: APPLY_FAILED };
           } finally {

@@ -34,6 +34,9 @@ export type RootStackParamList = {
   HireHome: undefined;
   PostRequest: undefined;
   WorkerProfile: { workerId: string };
+
+  // Account
+  SignIn: { mode?: 'sign-in' | 'sign-up' } | undefined;
 };
 
 /** `const nav = useNavigation<Nav>()` in every screen. */

@@ -11,9 +11,11 @@
     "src/features/**/*",
     "src/screens/earn/**/*",
     "src/screens/hire/**/*",
+    "src/screens/account/**/*",
     "src/navigation/routes.ts",
     "src/navigation/MainNavigator.tsx",
     "src/store/AppStore.tsx",
+    "src/store/SessionStore.tsx",
     "src/utils/format.ts"
   ]
 }

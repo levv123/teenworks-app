@@ -17,6 +17,7 @@ import { CATEGORY_BY_ID } from '../../data/mock';
 import type { IoniconName } from '../../data/types';
 import type { Nav, Route } from '../../navigation/routes';
 import { useApp, useApplication, useIsSaved } from '../../store/AppStore';
+import { useSession } from '../../store/SessionStore';
 import {
   AppText,
   EmptyState,
@@ -47,9 +48,12 @@ export function GigDetailScreen() {
   // Both carry the gig they belong to: a deep link can hand this same screen a
   // different gig, which must not inherit the last one's spinner or message.
   const [applyingFor, setApplyingFor] = useState<string | null>(null);
-  const [applyError, setApplyError] = useState<{ gigId: string; message: string } | null>(
-    null,
-  );
+  const [applyError, setApplyError] = useState<{
+    gigId: string;
+    message: string;
+    signedOut?: boolean;
+  } | null>(null);
+  const session = useSession();
   // A repeat tap needs no guard here: the store hands back the request already
   // in flight for this gig instead of sending another.
   const apply = useCallback(async () => {
@@ -58,7 +62,9 @@ export function GigDetailScreen() {
     setApplyError(null);
     const result = await applyToGig(gigId);
     setApplyingFor((current) => (current === gigId ? null : current));
-    if (result.status === 'failed') setApplyError({ gigId, message: result.message });
+    if (result.status === 'failed') {
+      setApplyError({ gigId, message: result.message, signedOut: result.signedOut });
+    }
   }, [applyToGig, params.gigId]);
 
   // A recorded application may have been accepted or declined since.
@@ -94,7 +100,11 @@ export function GigDetailScreen() {
     (tag) => tag.toLowerCase() !== scheduleLabel.toLowerCase(),
   );
 
-  const errorMessage = applyError?.gigId === gig.id ? applyError.message : null;
+  const shownError = applyError?.gigId === gig.id ? applyError : null;
+  // Signing in fixes this one, so the button offers it instead of a message.
+  const needsSignIn = shownError?.signedOut === true && session.status !== 'signed-in';
+  // Once signed in, that old "Sign in to apply" message no longer applies either.
+  const errorMessage = shownError === null || shownError.signedOut ? null : shownError.message;
 
   const metaRows: { icon: IoniconName; text: string }[] = [
     {
@@ -140,8 +150,14 @@ export function GigDetailScreen() {
             />
             <View style={styles.applyWrap}>
               <PrimaryButton
-                label={application ? APPLICATION_STATUS_LABEL[application.status] : 'Apply'}
-                onPress={() => void apply()}
+                label={
+                  application
+                    ? APPLICATION_STATUS_LABEL[application.status]
+                    : needsSignIn
+                      ? 'Sign in to apply'
+                      : 'Apply'
+                }
+                onPress={needsSignIn ? () => nav.navigate('SignIn') : () => void apply()}
                 disabled={application !== null}
                 loading={applyingFor === gig.id}
               />

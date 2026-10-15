@@ -29,6 +29,7 @@ import { SavedGigsScreen } from '../screens/earn/SavedGigsScreen';
 import { HireHomeScreen } from '../screens/hire/HireHomeScreen';
 import { PostRequestScreen } from '../screens/hire/PostRequestScreen';
 import { WorkerProfileScreen } from '../screens/hire/WorkerProfileScreen';
+import { SignInScreen } from '../screens/account/SignInScreen';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -86,6 +87,13 @@ export function MainNavigator() {
         <Stack.Screen name="HireHome" component={HireHomeScreen} />
         <Stack.Screen name="PostRequest" component={PostRequestScreen} />
         <Stack.Screen name="WorkerProfile" component={WorkerProfileScreen} />
+
+        {/* Account */}
+        <Stack.Screen
+          name="SignIn"
+          component={SignInScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
       </Stack.Navigator>
 
       {/* Sibling of the navigator, not a child of it, so the pill outlives screen changes. */}
